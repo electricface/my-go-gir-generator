@@ -1,0 +1,4 @@
+Namespace: Gtk
+Version: 3.0
+CIncludes:
+    - "gtk/gtk.h"
