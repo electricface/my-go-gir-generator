@@ -135,6 +135,7 @@ var _ mygibase.Gchar
 func pAlias(alias *mygi.Alias) {
     fmt.Println("\n// alias")
     fmt.Printf("type %s C.%s\n", alias.Name, alias.CType)
+    fmt.Printf("// alias.Type Name: %v CType: %v\n", alias.Type.Name, alias.Type.CType)
 }
 
 func pEnum(enum *mygi.Enum) {
@@ -162,10 +163,14 @@ func pConstant(c *mygi.Constant) {
     case "utf8":
         // quote string
         value = fmt.Sprintf("%#v", c.Value)
-    case "gint":
+    case "gint", "gdouble", "gchar",
+        "gint8", "gint16", "gint32", "gint64",
+        "guint8", "guint16", "guint32", "guint64",
+        "gboolean":
+        // TODO: handle gchar
         value = c.Value
     default:
-        panic("unsupport constant type")
+        panic( fmt.Sprintf("unsupport constant type %#v", c) )
     }
     fmt.Printf("const %s = %s\n", snake2Camel(strings.ToLower(c.Name)), value)
 }

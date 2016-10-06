@@ -9,7 +9,8 @@ import (
 
 func getParamName(p *mygi.Parameter) string {
     name := strings.TrimPrefix(p.Name, "@")
-    if name == "type" || name == "interface" {
+    if name == "type" || name == "interface" ||
+        name == "func" {
         return strings.ToUpper(name)
     }
     return name
