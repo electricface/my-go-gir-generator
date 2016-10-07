@@ -129,13 +129,22 @@ func (cvt *TypeConverter) String() string {
         fmt.Sprintf("gotype: %s\n", cvt.GoType)
 }
 
+func removeCQualifiers(ctype string) string {
+    ctype = strings.Replace(ctype, "const ", "", 1)
+    ctype = strings.Replace(ctype, "volatile ", "", 1)
+    ctype = strings.Replace(ctype, " const", "", 1)
+    ctype = strings.Replace(ctype, " volatile", "", 1)
+    return ctype
+}
+
 func getGoType(direction string, ty mygi.TypeLike) string {
     name := ty.GetName()
-    ctype := ty.GetCType()
+    ctype := removeCQualifiers(ty.GetCType())
+
     if direction == "out" {
         ctype = strings.TrimSuffix(ctype, "*")
     }
-    //fmt.Printf("name %s, ctype %s\n", name, ctype)
+    //fmt.Printf("getGoType name %q, ctype %q\n", name, ctype)
     if name == "utf8" || name == "filename" {
         return "string"
     }
@@ -143,16 +152,11 @@ func getGoType(direction string, ty mygi.TypeLike) string {
         return "error"
     }
     nStar := cTypeStarCount( ctype )
+    ctype = removeCTypeStar(ctype)
     return repeatStar(nStar) + _getGoType(name, ctype)
 }
 
 func _getGoType(name, ctype string) string {
-    if strings.Contains(ctype, name) && ctype != name {
-        // ctype GFile*
-        // name File
-        return getGoTypeByTypeName(name)
-    }
-
     var gotype string
     if ctype != "" {
         gotype = baseType2GoType(ctype)
@@ -170,18 +174,17 @@ func _getGoType(name, ctype string) string {
 
 func getCgoType(direction string, ty mygi.TypeLike) string {
     //name := ty.GetName()
-    ctype := ty.GetCType()
+    ctype := removeCQualifiers(ty.GetCType())
     if direction == "out" {
         ctype = strings.TrimSuffix(ctype, "*")
     }
-    //fmt.Printf("name %s, ctype %s\n", name, ctype)
+    //fmt.Printf("getCgoType ctype %q\n", ctype)
     if ctype == "void*" {
         return "unsafe.Pointer"
     }
 
     nStar := cTypeStarCount(ctype)
     ctypeWithoutStar := removeCTypeStar(ctype)
-    ctypeWithoutStar = strings.TrimPrefix(ctypeWithoutStar, "const ")
 
     return repeatStar(nStar) + "C." + ctypeWithoutStar
 }

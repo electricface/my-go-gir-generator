@@ -12,6 +12,51 @@ import (
 var emptyType = &mygi.Type{}
 var emptyArray = &mygi.Array{}
 
+//<parameter name="atomic" transfer-ownership="none">
+  //<doc xml:space="preserve">a pointer to a #gint or #guint</doc>
+  //<type name="gint" c:type="volatile gint*"/>
+//</parameter>
+func TestParamVolatilePointer(t *testing.T) {
+    Convey("ParamVolatilePointer", t, func(){
+        cvt := NewTypeConverter(false, "", &mygi.Type{
+            Name: "gint",
+            CType: "volatile gint*",
+        }, emptyArray)
+        So(cvt.GoType, ShouldEqual, "*mygibase.Gint")
+        So(cvt.CgoType, ShouldEqual, "*C.gint")
+    })
+}
+
+//<parameter name="atomic" transfer-ownership="none">
+  //<doc xml:space="preserve">a pointer to a #gint or #guint</doc>
+  //<type name="gint" c:type="volatile const gint*"/>
+//</parameter>
+func TestParamVolatileConstPointer(t *testing.T) {
+    Convey("ParamVolatileConstPointer", t, func(){
+        cvt := NewTypeConverter(false, "", &mygi.Type{
+            Name: "gint",
+            CType: "volatile const gint*",
+        }, emptyArray)
+        So(cvt.GoType, ShouldEqual, "*mygibase.Gint")
+        So(cvt.CgoType, ShouldEqual, "*C.gint")
+    })
+}
+
+//<parameter name="strv" transfer-ownership="none">
+  //<doc xml:space="preserve">a %NULL-terminated array of strings</doc>
+  //<type name="utf8" c:type="const gchar* const*"/>
+//</parameter>
+func TestParamConstPointer2(t *testing.T) {
+    Convey("ParamConstPointer2", t, func(){
+        cvt := NewTypeConverter(false, "", &mygi.Type{
+            Name: "utf8",
+            CType: "const gchar* const*",
+        }, emptyArray)
+        So(cvt.GoType, ShouldEqual, "string")
+        So(cvt.CgoType, ShouldEqual, "**C.gchar")
+    })
+}
+
 //<return-value transfer-ownership="full">
   //<array c:type="gchar**">
     //<type name="utf8"/>

@@ -55,6 +55,10 @@ func newErrorParameter() *mygi.Parameter {
 
 
 func printFunction(f *mygi.Function, funcName string) {
+    if !f.Introspectable {
+        fmt.Println("// not introspectable")
+        return
+    }
     //var paramCvtMap map[string]*TypeConverter
     paramCvtMap := make(map[string]*typeconverter.TypeConverter)
 

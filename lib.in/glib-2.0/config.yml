@@ -1,0 +1,7 @@
+Namespace: GLib
+Version: 2.0
+CIncludes:
+    - "glib-object.h"
+    - "glib-unix.h"
+    - "glib/gstdio.h"
+    - "time.h"

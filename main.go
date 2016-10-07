@@ -169,6 +169,8 @@ func pConstant(c *mygi.Constant) {
         "gboolean":
         // TODO: handle gchar
         value = c.Value
+    case "GLib.Type":
+        value = fmt.Sprintf("mygibase.GType(%s)", c.Value)
     default:
         panic( fmt.Sprintf("unsupport constant type %#v", c) )
     }
