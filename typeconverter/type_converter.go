@@ -96,29 +96,49 @@ func (cvt *TypeConverter) ElemCgo2Go(valName string) string {
 // target cgo, source go
 func (cvt *TypeConverter) ConvertGo2Cgo(target, source string) {
     if cvt.IsArrayType {
-        fmt.Printf("\t// array convert\n")
-        fmt.Printf("\t%s = (%s)(C.malloc(C.size_t(int(unsafe.Sizeof(*%s)) * (len(%s)) )))\n",
-            target, cvt.CgoType, target, source)
-        fmt.Printf("\tfor i, e := range %s {\n", source)
-         elemConvertExp := cvt.ElemGo2Cgo("e")
-        fmt.Printf("\t\t%s := %s\n", target + "_E", elemConvertExp)
-        fmt.Printf("\t\t*(%s)(unsafe.Pointer(uintptr(unsafe.Pointer(%s)) + uintptr(i)*unsafe.Sizeof(*%s))) = %s\n", cvt.CgoType, target, target, target + "_E")
-        fmt.Println("\t}") //end for
+        fmt.Printf("\t// array convert target: %s, source: %s\n", target, source)
+        fmt.Printf("\t// array is zero terminated? %v\n", cvt.Array.ZeroTerminated)
 
+        if cvt.Array.ZeroTerminated {
+            fmt.Printf("\t%s = (%s)(C.malloc(C.size_t(int(unsafe.Sizeof(*%s)) * (len(%s)+1) )))\n",
+                target, cvt.CgoType, target, source)
+            fmt.Printf("\tfor i, e := range %s {\n", source)
+             elemConvertExp := cvt.ElemGo2Cgo("e")
+            fmt.Printf("\t\t%s := %s\n", target + "_E", elemConvertExp)
+            fmt.Printf("\t\t*(%s)(unsafe.Pointer(uintptr(unsafe.Pointer(%s)) + uintptr(i)*unsafe.Sizeof(*%s))) = %s\n", cvt.CgoType, target, target, target + "_E")
+            fmt.Println("\t}") //end for
+            fmt.Printf("\t*(%s)(unsafe.Pointer(uintptr(unsafe.Pointer(%s)) + uintptr(len(%s))*unsafe.Sizeof(*%s))) = nil\n", cvt.CgoType, target, source, target)
+        } else {
+            fmt.Println("// TODO")
+        }
     } else {
         fmt.Printf("\t%s = %s\n", target, cvt.Go2Cgo(source))
     }
 }
 
 func (cvt *TypeConverter) ConvertCgo2Go(target, source string) {
-    //return cvt.Cgo2Go(target)
     if cvt.IsArrayType {
-        fmt.Printf("\t// TODO: array convert\n")
+        fmt.Printf("\t// array convert target: %s, source: %s\n", target, source)
+
+        fmt.Printf("\t// array is zero terminated? %v\n", cvt.Array.ZeroTerminated)
+
+        if cvt.Array.ZeroTerminated {
+            varLengthName := source + "_Len"
+            fmt.Printf("\t%s := mygibase.ZeroTerminatedArrayLength(unsafe.Pointer(%s))\n", varLengthName, source)
+            fmt.Printf("\t%s = make(%s, %s)\n", target, cvt.GoType, varLengthName)
+            fmt.Printf("\tfor i := uintptr(0); i < %s; i++ {\n", varLengthName)
+            fmt.Printf("\t\t%s := *(%s)(unsafe.Pointer( uintptr(unsafe.Pointer(%s)) + i*unsafe.Sizeof(*%s) ))\n", target + "_E", cvt.CgoType, source, source)
+            elemConvertExp := cvt.ElemCgo2Go(target + "_E")
+            fmt.Printf("\t\t%s[i] = %s\n", target, elemConvertExp)
+            fmt.Println("\t}") // end for
+        } else {
+            fmt.Println("// TODO")
+        }
+
     } else {
         fmt.Printf("\t%s = %s\n", target, cvt.Cgo2Go(source))
     }
 }
-
 
 func (cvt *TypeConverter) String() string {
     var arrayOrType string
