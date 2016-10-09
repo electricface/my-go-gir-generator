@@ -7,6 +7,12 @@ import (
     "bytes"
 )
 
+var namespace string
+
+func SetNamespace(ns string) {
+    namespace = ns
+}
+
 type TypeConverter struct {
     IsReturnValue bool
     Direction string
@@ -88,9 +94,8 @@ func (cvt *TypeConverter) ElemCgo2Go(valName string) string {
 
 // print convert
 // target cgo, source go
-func (cvt *TypeConverter) ConvertGo2Cgo(target string, source string) {
-    isArrayType := !cvt.Array.IsZero()
-    if isArrayType {
+func (cvt *TypeConverter) ConvertGo2Cgo(target, source string) {
+    if cvt.IsArrayType {
         fmt.Printf("\t// array convert\n")
         fmt.Printf("\t%s = (%s)(C.malloc(C.size_t(int(unsafe.Sizeof(*%s)) * (len(%s)) )))\n",
             target, cvt.CgoType, target, source)
@@ -101,17 +106,17 @@ func (cvt *TypeConverter) ConvertGo2Cgo(target string, source string) {
         fmt.Println("\t}") //end for
 
     } else {
-        convertExp := cvt.Go2Cgo(source)
-        fmt.Printf("\t%s = %s\n", target, convertExp)
+        fmt.Printf("\t%s = %s\n", target, cvt.Go2Cgo(source))
     }
 }
 
-//func (cvt *TypeConverter) ConvertGo2Cgo(target string) string {
-    //return cvt.Go2Cgo(target)
-//}
-
-func (cvt *TypeConverter) ConvertCgo2Go(target string) string {
-    return cvt.Cgo2Go(target)
+func (cvt *TypeConverter) ConvertCgo2Go(target, source string) {
+    //return cvt.Cgo2Go(target)
+    if cvt.IsArrayType {
+        fmt.Printf("\t// TODO: array convert\n")
+    } else {
+        fmt.Printf("\t%s = %s\n", target, cvt.Cgo2Go(source))
+    }
 }
 
 
@@ -279,9 +284,9 @@ func baseType2GoType(ctype string) string {
             return "bool"
         case "gpointer", "gconstpointer":
             return "unsafe.Pointer"
-        case "gfloat":
+        case "gfloat", "float":
             return "float32"
-        case "gdouble":
+        case "gdouble", "double":
             return "float64"
         case "GType":
             return "mygibase.GType"
@@ -294,6 +299,8 @@ func baseType2GoType(ctype string) string {
             "gintptr", "guintptr",
             "time_t":
             return "mygibase." + snake2Camel(ctype)
+        case "int":
+            return "mygibase.Gint"
         case "gint8", "guint8",
             "gint16", "guint16",
             "gint32", "guint32",
@@ -311,8 +318,14 @@ func getGoTypeByTypeName(name string) string {
     gotype := name
     if strings.ContainsRune(name, '.') {
         nameArr := strings.SplitN(name, ".", 2)
-        gotype = strings.ToLower(nameArr[0]) + "." + nameArr[1]
-        // GLib.Variant -> glib.Variant
+        ns := strings.ToLower(nameArr[0])
+        if ns == namespace {
+            // GLib.HashTable -> HashTable if namespace == "glib"
+            gotype = nameArr[1]
+        } else {
+            gotype = ns + "." + nameArr[1]
+            // GLib.Variant -> glib.Variant
+        }
     }
     return gotype
 }

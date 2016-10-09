@@ -7,6 +7,16 @@ import (
     //"fmt"
 )
 
+func strSliceContains(slice []string,str string) bool {
+    for _, v := range slice {
+        if str == v {
+            return true
+        }
+    }
+    return false
+}
+
+
 // snake_case to CamelCase
 func snake2Camel(name string) string {
     //name = strings.ToLower(name)

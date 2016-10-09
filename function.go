@@ -7,10 +7,17 @@ import (
     "./typeconverter"
 )
 
+var goKeywords = []string{
+    "break", "default", "func", "interface", "select",
+    "case", "defer", "go", "map", "struct",
+    "chan", "else", "goto", "package", "switch",
+    "const", "fallthrough", "if", "range", "type",
+    "continue", "for", "import", "return", "var",
+}
+
 func getParamName(p *mygi.Parameter) string {
     name := strings.TrimPrefix(p.Name, "@")
-    if name == "type" || name == "interface" ||
-        name == "func" {
+    if strSliceContains(goKeywords, name) {
         return strings.ToUpper(name)
     }
     return name
@@ -59,6 +66,11 @@ func printFunction(f *mygi.Function, funcName string) {
         fmt.Println("// not introspectable")
         return
     }
+    if libCfg.IsFunctionInBlacklist(f.CIdentifier) {
+        fmt.Println("// function in blacklist")
+        return
+    }
+
     //var paramCvtMap map[string]*TypeConverter
     paramCvtMap := make(map[string]*typeconverter.TypeConverter)
 
@@ -219,7 +231,7 @@ func pCParamsToGoConversions(cParamsToGo []*mygi.Parameter,
     for _, param := range cParamsToGo {
         cvt := paramCvtMap[param.Name]
         fmt.Printf("\t// cgo2go: %s,%s\n", cvt.CgoType, cvt.GoType)
-        fmt.Printf("\t%s = %s\n", getParamReturnName(param), cvt.ConvertCgo2Go(getParamCParamName(param)) )
+        cvt.ConvertCgo2Go(getParamReturnName(param), getParamCParamName(param))
     }
 }
 

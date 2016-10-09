@@ -5,36 +5,22 @@ import (
     "os"
     "mygi"
     "strings"
-    "io/ioutil"
     "path/filepath"
-    "gopkg.in/yaml.v2"
     "./typeconverter"
 )
 
-type LibConfig struct {
-    Namespace string `yaml:"Namespace"`
-    Version string `yaml:"Version"`
-    CIncludes []string `yaml:"CIncludes"`
-}
-
 var namespace string
+var libCfg *LibConfig
 
 func main() {
     libDir := os.Args[1]
-    // read lib.in config.yml
-    var libCfg LibConfig
-    libCfgBytes, err := ioutil.ReadFile(filepath.Join(libDir, "config.yml"))
+    var err error
+    libCfg, err = loadLibConfig(filepath.Join(libDir, "config.yml"))
     if err != nil {
-        fmt.Println("err:", err)
-        return
-    }
-
-    err = yaml.Unmarshal(libCfgBytes, &libCfg)
-    if err != nil {
-        fmt.Println("err:", err)
-        return
+        panic(err)
     }
     namespace = libCfg.Namespace
+    typeconverter.SetNamespace(strings.ToLower(namespace))
     version := libCfg.Version
 
     // package
@@ -107,6 +93,16 @@ var _ mygibase.Gchar
         pStruct(&st)
     }
 
+    // union
+    for _, u := range repons.Unions {
+        pUnion(&u)
+    }
+
+    // callback: function pointer?
+    for _, c := range repons.Callbacks {
+        pCallback(&c)
+    }
+
     // function
     for _, f := range repons.Functions {
         pFunction(&f)
@@ -174,7 +170,20 @@ func pConstant(c *mygi.Constant) {
     default:
         panic( fmt.Sprintf("unsupport constant type %#v", c) )
     }
-    fmt.Printf("const %s = %s\n", snake2Camel(strings.ToLower(c.Name)), value)
+
+    var name string
+    if newName, ok := libCfg.ConstantRename[ c.Name ]; ok {
+        name = newName
+    } else {
+        name = snake2Camel(strings.ToLower(c.Name))
+    }
+
+    fmt.Printf("const %s = %s\n", name, value)
+}
+
+func pUnion(s *mygi.Union) {
+    fmt.Println("// union")
+    fmt.Printf("type %s %s\n", s.Name, "C." + s.CType)
 }
 
 func pStruct(s *mygi.Record) {
@@ -182,8 +191,13 @@ func pStruct(s *mygi.Record) {
         fmt.Println("// struct ignore", s.Name)
         return
     }
-    if s.Disguised {
-        fmt.Println("// struct ignore", s.Name)
+    // Disguised cannot ignore, eg. GIConv
+    //if s.Disguised {
+        //fmt.Println("// struct ignore", s.Name)
+        //return
+    //}
+    if libCfg.IsRecordInBlacklist(s.Name) {
+        fmt.Println("// record in blacklist")
         return
     }
 
@@ -194,6 +208,11 @@ func pStruct(s *mygi.Record) {
     for _, method := range s.Methods {
         pMethod(&method)
     }
+}
+
+func pCallback(c *mygi.Callback) {
+    fmt.Println("// callback")
+    fmt.Printf("type %s %s\n", c.Name, "C." + c.CType)
 }
 
 func registerConvert(typeName, cType string) {
