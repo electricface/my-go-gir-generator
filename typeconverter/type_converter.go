@@ -20,6 +20,7 @@ type TypeConverter struct {
     Array *mygi.Array
 
     IsArrayType bool
+    IsGList bool
     ElemCgoType string
     ElemGoType string
 
@@ -40,11 +41,15 @@ func NewTypeConverter(isRetVal bool,direction string, ty *mygi.Type, arr *mygi.A
     }
 
     cvt.IsArrayType = !cvt.Array.IsZero()
+    cvt.IsGList = (cvt.Type.Name == "GLib.List" && !cvt.Type.SubType.IsZero())
 
     // gotype
     var gotype string
     if cvt.IsArrayType {
         cvt.ElemGoType = getGoType(direction, &cvt.Array.ElemType)
+        gotype = "[]" + cvt.ElemGoType
+    } else if cvt.IsGList {
+        cvt.ElemGoType = "*" + getGoType(direction, &cvt.Type.SubType)
         gotype = "[]" + cvt.ElemGoType
     } else {
         gotype = getGoType(direction, cvt.Type)

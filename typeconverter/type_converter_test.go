@@ -423,6 +423,34 @@ func TestReturnGListArray(t *testing.T) {
         So(cvt.CgoType, ShouldEqual, "*C.GList")
     })
 }
+
+        //<return-value transfer-ownership="full" nullable="1">
+          //<doc xml:space="preserve">A
+//list of #GUdevDevice objects. The caller should free the result by
+//using g_object_unref() on each element in the list and then
+//g_list_free() on the list.</doc>
+          //<type name="GLib.List" c:type="GList*">
+            //<type name="Device"/>
+          //</type>
+        //</return-value>
+func TestReturnGList1(t *testing.T) {
+    Convey("ReturnGList1", t, func(){
+        cvt := NewTypeConverter(true, "", &mygi.Type{
+            Name: "GLib.List",
+            CType: "GList*",
+            SubType: mygi.SubType{
+                Name: "Device",
+            },
+        }, emptyArray)
+
+        So(cvt.GoType, ShouldEqual, "[]*Device")
+        So(cvt.CgoType, ShouldEqual, "*C.GList")
+        So(cvt.IsGList, ShouldBeTrue)
+        So(cvt.ElemGoType, ShouldEqual, "*Device")
+        So(cvt.ElemCgoType, ShouldEqual, "*GUdevDevice")
+    })
+}
+
 //<return-value transfer-ownership="none">
           //<doc xml:space="preserve">%TRUE if @action_name is valid</doc>
           //<type name="gboolean" c:type="gboolean"/>

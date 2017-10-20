@@ -1,298 +1,72 @@
 package main
 
 import (
-    "fmt"
-    "os"
-    "mygi"
-    "strings"
-    "path/filepath"
-    "./typeconverter"
+	"mygi"
+	"log"
+	"os"
 )
 
-var namespace string
 var libCfg *LibConfig
 
 func main() {
-    libDir := os.Args[1]
-    var err error
-    libCfg, err = loadLibConfig(filepath.Join(libDir, "config.yml"))
-    if err != nil {
-        panic(err)
-    }
-    namespace = libCfg.Namespace
-    typeconverter.SetNamespace(strings.ToLower(namespace))
-    version := libCfg.Version
+	repo, err := mygi.Load("Gio", "2.0")
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    // package
-    pkg := strings.ToLower(namespace)
-    fmt.Println("package", pkg)
+	types := repo.GetTypes()
+	log.Print(len(types))
 
-    fmt.Println("// namespace:", namespace)
-    fmt.Println("// version:", version)
+	for name, type0 := range types {
+		log.Printf("%s -> %T\n", name, type0)
+	}
 
-    // parse gir xml
-    repo, err := mygi.Load(namespace, version)
-    if err != nil {
-        panic(err)
-    }
-    fmt.Println("// parse gir xml ok")
-
-    // c includes
-    fmt.Println("\n/*")
-    for _, ci := range repo.CIncludes() {
-        fmt.Printf("#include <%s>\n", ci.Name)
-    }
-    fmt.Printf("#include <%s>\n", "stdlib.h")
-    for _, ci := range libCfg.CIncludes {
-        fmt.Printf("#include <%s>\n", ci)
-    }
-    // pkg-config
-    var pkgs []string
-    for _, p := range repo.Packages {
-        pkgs = append(pkgs, p.Name)
-    }
-    fmt.Printf("#cgo pkg-config: %s\n", strings.Join(pkgs, " "))
-    fmt.Println("*/\nimport \"C\"")
-
-    // go import
-    fmt.Println(
-`import (
-    "unsafe"
-    mygibase "mygi/base"
-)
-
-var _ unsafe.Pointer
-var _ mygibase.Gchar
-`)
-
-    repons := repo.Namespace
-
-    // alias
-    for _, alias := range repons.Aliases {
-        pAlias(&alias)
-    }
-
-    // enum
-    for _, enum := range repons.Enums {
-        pEnum(&enum)
-    }
-
-    // bitfield
-    for _, enum := range repons.Bitfields {
-        pEnum(&enum)
-    }
-
-    // constant
-    fmt.Println("\n// constants")
-    for _, constant := range repons.Constants {
-        pConstant(&constant)
-    }
-
-    // struct
-    for _, st := range repons.Records {
-        pStruct(&st)
-    }
-
-    // union
-    for _, u := range repons.Unions {
-        pUnion(&u)
-    }
-
-    // callback: function pointer?
-    for _, c := range repons.Callbacks {
-        pCallback(&c)
-    }
-
-    // function
-    for _, f := range repons.Functions {
-        pFunction(&f)
-    }
-
-    // registerConvert
-    for _, c := range repons.Classes {
-        registerConvert(c.Name, c.CType)
-    }
-    for _, ifc := range repons.Interfaces {
-        registerConvert(ifc.Name, ifc.CType)
-    }
-
-
-    // class
-    for _, c := range repons.Classes {
-        pClass(&c)
-    }
-
-    // interface
-    for _, ifc := range repons.Interfaces {
-        pInterface(&ifc)
-    }
+	os.Exit(0)
+	interfaces := repo.Namespace.Interfaces
+	for _, interface0 := range interfaces {
+		if interface0.Name == "AppInfo" {
+			sourceFile := NewSourceFile("gio")
+			pInterface(sourceFile, interface0)
+			//sourceFile.Print()
+			sourceFile.Save("out/appinfo.go")
+		}
+	}
 }
 
-func pAlias(alias *mygi.Alias) {
-    fmt.Println("\n// alias")
-    fmt.Printf("type %s C.%s\n", alias.Name, alias.CType)
-    fmt.Printf("// alias.Type Name: %v CType: %v\n", alias.Type.Name, alias.Type.CType)
+func pInterface(s *SourceFile, interface0 *mygi.Interface) {
+	name := interface0.Name
+	s.GoBody.Pn("// interface %s", name)
+
+	s.GoBody.Pn("type %s struct {", name )
+	s.GoBody.Pn("Ptr unsafe.Pointer")
+	s.GoBody.Pn("}")
+
+	cPtrType := "*C." + interface0.CType
+
+	// method native
+	s.GoBody.Pn("func (v %s) native() %s {", name, cPtrType)
+	s.GoBody.Pn("return (%s)(v.Ptr)", cPtrType)
+	s.GoBody.Pn("}")
+
+	// method wrapXXX
+	s.GoBody.Pn("func wrap%s(p %s) %s {", name, cPtrType, name )
+	s.GoBody.Pn("return %s{unsafe.Pointer(p)}", name)
+	s.GoBody.Pn("}")
+
+	// method WrapXXX
+	s.GoBody.Pn("func Wrap%s(p unsafe.Pointer) %s {", name, name )
+	s.GoBody.Pn("return %s{p}", name)
+	s.GoBody.Pn("}")
+
+	// methods
+	for _, method := range interface0.Methods {
+		s.GoBody.Pn("// method %s", method.Name())
+		s.GoBody.Pn("// %s", method.CIdentifier)
+
+		if method.CIdentifier == "g_app_info_get_id" {
+			//pMethod(&method)
+		}
+
+	}
+
 }
-
-func pEnum(enum *mygi.Enum) {
-    fmt.Println("\n// enum")
-    // type def
-    fmt.Printf("type %s C.%s\n", enum.Name, enum.CType)
-    fmt.Println("const (")
-    for i, member := range enum.Members {
-        goValName := enum.Name + snake2Camel(member.Name)
-        if i == 0 {
-            fmt.Printf("\t%s %s = %s\n", goValName, enum.Name, member.Value)
-        } else {
-            fmt.Printf("\t%s = %s\n", goValName, member.Value)
-        }
-    }
-    fmt.Println(")")
-}
-
-func pConstant(c *mygi.Constant) {
-    // NOTE: no use c.CType c.CType == C.Name
-    //fmt.Println("// const ctype:", c.CType)
-    //fmt.Printf("// constant type %#v\n", c.Type)
-    var value string
-    switch c.Type.Name {
-    case "utf8":
-        // quote string
-        value = fmt.Sprintf("%#v", c.Value)
-    case "gint", "gdouble", "gchar",
-        "gint8", "gint16", "gint32", "gint64",
-        "guint8", "guint16", "guint32", "guint64",
-        "gboolean":
-        // TODO: handle gchar
-        value = c.Value
-    case "GLib.Type":
-        value = fmt.Sprintf("mygibase.GType(%s)", c.Value)
-    default:
-        panic( fmt.Sprintf("unsupport constant type %#v", c) )
-    }
-
-    var name string
-    if newName, ok := libCfg.ConstantRename[ c.Name ]; ok {
-        name = newName
-    } else {
-        name = snake2Camel(strings.ToLower(c.Name))
-    }
-
-    fmt.Printf("const %s = %s\n", name, value)
-}
-
-func pUnion(s *mygi.Union) {
-    fmt.Println("// union")
-    fmt.Printf("type %s %s\n", s.Name, "C." + s.CType)
-}
-
-func pStruct(s *mygi.Record) {
-    if s.GlibIsGtypeStructFor != "" {
-        fmt.Println("// struct ignore", s.Name)
-        return
-    }
-    // Disguised cannot ignore, eg. GIConv
-    //if s.Disguised {
-        //fmt.Println("// struct ignore", s.Name)
-        //return
-    //}
-    if libCfg.IsRecordInBlacklist(s.Name) {
-        fmt.Println("// record in blacklist")
-        return
-    }
-
-    fmt.Println("// struct")
-    fmt.Printf("type %s %s\n", s.Name, "C." + s.CType)
-
-    // struct methods
-    for _, method := range s.Methods {
-        pMethod(&method)
-    }
-}
-
-func pCallback(c *mygi.Callback) {
-    fmt.Println("// callback")
-    fmt.Printf("type %s %s\n", c.Name, "C." + c.CType)
-}
-
-func registerConvert(typeName, cType string) {
-    cgoType := "*C." + cType
-    goType := "*" + typeName
-    // *C.GAppInfo,*AppInfo
-    typeconverter.RegisterConvertCgo2Go(cgoType, goType,
-        fmt.Sprintf("%sNewWithUnsafePointer(unsafe.Pointer($_))", typeName))
-
-    // *AppInfo,*C.GAppInfo
-    typeconverter.RegisterConvertGo2Cgo(goType, cgoType,
-        fmt.Sprintf("(%s)($_.GetUnsafePointer())", cgoType) )
-}
-
-func pClass(c *mygi.Class) {
-    fmt.Println("\n// class")
-
-    // type struct block
-    fmt.Printf("type %s struct {\n", c.Name)
-    fmt.Println("\tC unsafe.Pointer")
-    // ifcs
-    var ifcs []string
-    for _, ifc := range c.ImplementedInterfaces {
-        ifcs = append(ifcs, ifc.Name)
-        fmt.Printf("\t%s\n", ifc.Name)
-    }
-    fmt.Println("}")
-
-    // GetUnsafePointer method
-    pGetUnsafePointerMethod(c.Name)
-
-    //  c.Name + NewWithUnsafePointer func
-    pNewWithUnsafePointerFunc(c.Name, ifcs)
-
-    // class constructors
-    for _, constructor := range c.Constructors {
-        pConstructor(&constructor, c.Name)
-    }
-
-    // class methods
-    for _, method := range c.Methods {
-        pMethod(&method)
-    }
-}
-//func (this *AppInfo) GetUnsafePointer() unsafe.Pointer {
-    //return this.C
-//}
-func pGetUnsafePointerMethod(name string) {
-    fmt.Printf("\nfunc (this *%s) GetUnsafePointer() unsafe.Pointer {\n", name)
-    fmt.Printf("\treturn this.C\n}\n")
-}
-
-//func DesktopAppInfoNewWitchUnsafePointer(p unsafe.Pointer) *AppInfo {
-    //this := &AppInfo{C:p}
-    //this.AppInfo.C = p
-    //return this
-//}
-func pNewWithUnsafePointerFunc(name string, ifcs []string) {
-    fmt.Printf("\nfunc %sNewWithUnsafePointer(p unsafe.Pointer) *%s {\n", name, name)
-    fmt.Printf("\tthis := &%s{C:p}\n", name)
-    // set ifc.C
-    for _, ifc := range ifcs {
-        fmt.Printf("\tthis.%s.C = p\n", ifc)
-    }
-    fmt.Println("\treturn this\n}")
-}
-
-func pInterface(ifc *mygi.Interface) {
-    fmt.Println("\n// ifc")
-
-    fmt.Printf("type %s struct {\n", ifc.Name)
-    fmt.Println("\tC unsafe.Pointer")
-    fmt.Println("}")
-
-    pGetUnsafePointerMethod(ifc.Name)
-    pNewWithUnsafePointerFunc(ifc.Name, nil)
-
-    // interface methods
-    for _, method := range ifc.Methods {
-        pMethod(&method)
-    }
-}
-
