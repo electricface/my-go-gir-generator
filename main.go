@@ -25,7 +25,7 @@ func main() {
 
 	interfaces := repo.Namespace.Interfaces
 	for _, interface0 := range interfaces {
-		if interface0.Name() == "AppInfo" {
+		if interface0.Name() == "File" {
 			sourceFile := NewSourceFile("gio")
 			pInterface(sourceFile, interface0)
 			//sourceFile.Print()
@@ -61,22 +61,66 @@ func pInterface(s *SourceFile, interface0 *mygi.Interface) {
 
 	// methods
 	for _, method := range interface0.Methods {
-		//if method.CIdentifier == "g_app_info_get_id" {
-		if method.CIdentifier == "g_app_info_set_as_last_used_for_type" {
+		switch method.CIdentifier {
+		case "g_app_info_get_id",
+		"g_app_info_set_as_last_used_for_type",
+		"g_file_replace":
 			pMethod(s, method)
 		}
-
 	}
-
 }
 
 var goParamPassInDescMap = map[string]*GoParamPassInDesc{
+	// interface
 	"*C.GAppInfo": {
 		TypeForGo:    "AppInfo",
 		TypeForC:     "*C.GAppInfo",
 		ConvertExpr:  "",
 		ConvertClean: "",
 		ExprInCall:   "$g.native()",
+	},
+
+	"*C.GFile": {
+		TypeForGo:    "File",
+		TypeForC:     "*C.GFile",
+		ConvertExpr:  "",
+		ConvertClean: "",
+		ExprInCall:   "$g.native()",
+	},
+
+	"*C.GCancellable": {
+		TypeForGo:    "GCancellable",
+		TypeForC:     "*C.GCancellable",
+		ConvertExpr:  "",
+		ConvertClean: "",
+		ExprInCall:   "$g.native()",
+	},
+
+	// boolean
+	"C.gboolean": {
+		TypeForGo:    "bool",
+		TypeForC:     "C.gboolean",
+		ConvertExpr:  "",
+		ConvertClean: "",
+		ExprInCall:   "toGBool($g)",
+	},
+
+	// enum
+	"C.GFileCreateFlags": {
+		TypeForGo: "FileCreateFlags",
+		TypeForC: "C.GFileCreateFlags",
+		ConvertExpr:  "",
+		ConvertClean: "",
+		ExprInCall:   "C.GFileCreateFlags($g)",
+	},
+
+	// string
+	"*C.char": {
+		TypeForGo: "string",
+		TypeForC: "*C.GAppInfo",
+		ConvertExpr: "C.CString($g)",
+		ConvertClean:"defer C.free(unsafe.Pointer($c))",
+		ExprInCall: "$c",
 	},
 }
 
@@ -121,21 +165,24 @@ func (t *ParamPassInTemplate) GetVarForGo() string {
 	return t.param.Name
 }
 
-func (t *ParamPassInTemplate) GetMethodReceive() string {
-	return fmt.Sprintf("(%s %s)", t.GetVarForGo(), t.desc.TypeForGo )
+func (t *ParamPassInTemplate) GetVarTypeForGo() string {
+	return fmt.Sprintf("%s %s", t.GetVarForGo(), t.desc.TypeForGo )
 }
 
 func getGoParamPassInDesc(typeForC string) *GoParamPassInDesc {
 	return goParamPassInDescMap[typeForC]
 }
 
-func getParamPassInTemplate(param *mygi.Parameter) *ParamPassInTemplate {
+func newParamPassInTemplate(param *mygi.Parameter) *ParamPassInTemplate {
 	ctype, err := mygi.ParseCType(param.Type.CType)
 	if err != nil {
 		panic(err)
 	}
 	typeForC := ctype.CgoNotation()
 	passInDesc := getGoParamPassInDesc(typeForC)
+	if passInDesc == nil {
+		panic("fail to get passInDesc for " + typeForC)
+	}
 
 	return &ParamPassInTemplate{
 		param: param,
@@ -150,20 +197,37 @@ func pMethod(s *SourceFile, method *mygi.Function) {
 	instanceParam := method.Parameters.InstanceParameter
 	// instanceParam 必须不为空
 
-	instanceParamTpl := getParamPassInTemplate(instanceParam)
-	recv := instanceParamTpl.GetMethodReceive()
+	instanceParamTpl := newParamPassInTemplate(instanceParam)
+	recv := instanceParamTpl.GetVarTypeForGo()
 
-	args := ""
+	params := method.Parameters.Parameters
+	var paramTpls []*ParamPassInTemplate
+	var args []string
+	for _, param := range params {
+		paramTpl := newParamPassInTemplate(param)
+		paramTpls = append(paramTpls, paramTpl)
+		args = append(args, paramTpl.GetVarTypeForGo())
+	}
+
+
+	argsJoined := strings.Join(args, ", ")
 	rets := ""
-	s.GoBody.Pn("func %s %s (%s) %s {", recv, method.Name(), args, rets)
+	s.GoBody.Pn("func (%s) %s (%s) %s {", recv, method.Name(), argsJoined, rets)
 
+	// start func body
 	instanceParamTpl.WriteDeclaration(s)
+
+	for _, paramTpl := range paramTpls {
+		paramTpl.WriteDeclaration(s)
+	}
 
 	var exprsInCall []string
 	exprsInCall = append(exprsInCall, instanceParamTpl.GetExprInCall())
+	for _, paramTpl := range paramTpls {
+		exprsInCall = append(exprsInCall, paramTpl.GetExprInCall())
+	}
 
-	// func body ...
-	s.GoBody.Pn("ret := C.%s(%s)", method.CIdentifier, strings.Join(exprsInCall,",") )
+	s.GoBody.Pn("ret := C.%s(%s)", method.CIdentifier, strings.Join(exprsInCall,", ") )
 
 	s.GoBody.Pn("}") // end body
 }
