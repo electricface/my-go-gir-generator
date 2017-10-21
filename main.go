@@ -1,17 +1,19 @@
 package main
 
 import (
-	"mygi"
 	"log"
-	"github.com/davecgh/go-spew/spew"
-	"fmt"
 	"strings"
+
+	"mygi"
+	"github.com/davecgh/go-spew/spew"
 )
 
 var libCfg *LibConfig
+var repo *mygi.Repository
 
 func main() {
-	repo, err := mygi.Load("Gio", "2.0")
+	var err error
+	repo, err = mygi.Load("Gio", "2.0")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -30,6 +32,53 @@ func main() {
 			pInterface(sourceFile, interface0)
 			//sourceFile.Print()
 			sourceFile.Save("out/appinfo.go")
+		}
+	}
+
+	classes := repo.Namespace.Classes
+	for _, class := range classes {
+		if class.Name() == "Settings" {
+			sourceFile := NewSourceFile("gio")
+			pClass(sourceFile, class)
+			//sourceFile.Print()
+			sourceFile.Save("out/settings.go")
+		}
+	}
+}
+
+func pClass(s *SourceFile, class *mygi.Class) {
+	name := class.Name()
+	s.GoBody.Pn("// class %s", name)
+
+	s.GoBody.Pn("type %s struct {", name )
+	s.GoBody.Pn("Ptr unsafe.Pointer")
+	s.GoBody.Pn("}")
+
+	cPtrType := "*C." + class.CTypeAttr
+
+	// method native
+	s.GoBody.Pn("func (v %s) native() %s {", name, cPtrType)
+	s.GoBody.Pn("return (%s)(v.Ptr)", cPtrType)
+	s.GoBody.Pn("}")
+
+	// method wrapXXX
+	s.GoBody.Pn("func wrap%s(p %s) %s {", name, cPtrType, name )
+	s.GoBody.Pn("return %s{unsafe.Pointer(p)}", name)
+	s.GoBody.Pn("}")
+
+	// method WrapXXX
+	s.GoBody.Pn("func Wrap%s(p unsafe.Pointer) %s {", name, name )
+	s.GoBody.Pn("return %s{p}", name)
+	s.GoBody.Pn("}")
+
+	// methods
+	for _, method := range class.Methods {
+		switch method.CIdentifier {
+		case "g_app_info_get_id",
+			"g_app_info_set_as_last_used_for_type",
+			"g_file_replace",
+			"g_settings_get_value":
+			pMethod(s, method)
 		}
 	}
 }
@@ -64,129 +113,10 @@ func pInterface(s *SourceFile, interface0 *mygi.Interface) {
 		switch method.CIdentifier {
 		case "g_app_info_get_id",
 		"g_app_info_set_as_last_used_for_type",
-		"g_file_replace":
+		"g_file_replace",
+		"g_settings_get_value":
 			pMethod(s, method)
 		}
-	}
-}
-
-var goParamPassInDescMap = map[string]*GoParamPassInDesc{
-	// interface
-	"*C.GAppInfo": {
-		TypeForGo:    "AppInfo",
-		TypeForC:     "*C.GAppInfo",
-		ConvertExpr:  "",
-		ConvertClean: "",
-		ExprInCall:   "$g.native()",
-	},
-
-	"*C.GFile": {
-		TypeForGo:    "File",
-		TypeForC:     "*C.GFile",
-		ConvertExpr:  "",
-		ConvertClean: "",
-		ExprInCall:   "$g.native()",
-	},
-
-	"*C.GCancellable": {
-		TypeForGo:    "GCancellable",
-		TypeForC:     "*C.GCancellable",
-		ConvertExpr:  "",
-		ConvertClean: "",
-		ExprInCall:   "$g.native()",
-	},
-
-	// boolean
-	"C.gboolean": {
-		TypeForGo:    "bool",
-		TypeForC:     "C.gboolean",
-		ConvertExpr:  "",
-		ConvertClean: "",
-		ExprInCall:   "toGBool($g)",
-	},
-
-	// enum
-	"C.GFileCreateFlags": {
-		TypeForGo: "FileCreateFlags",
-		TypeForC: "C.GFileCreateFlags",
-		ConvertExpr:  "",
-		ConvertClean: "",
-		ExprInCall:   "C.GFileCreateFlags($g)",
-	},
-
-	// string
-	"*C.char": {
-		TypeForGo: "string",
-		TypeForC: "*C.GAppInfo",
-		ConvertExpr: "C.CString($g)",
-		ConvertClean:"defer C.free(unsafe.Pointer($c))",
-		ExprInCall: "$c",
-	},
-}
-
-// go参数传入过程的描述
-type GoParamPassInDesc struct {
-	TypeForGo    string // go
-	TypeForC     string // key, c
-	ConvertExpr  string
-	ConvertClean string
-	ExprInCall   string
-}
-
-type ParamPassInTemplate struct {
-	param *mygi.Parameter
-	desc *GoParamPassInDesc
-}
-
-func (t *ParamPassInTemplate) replace(in string) string {
-	in = strings.Replace(in, "$g", t.GetVarForGo(), -1)
-	return strings.Replace(in, "$c", t.GetVarForC(), -1)
-}
-
-func (t *ParamPassInTemplate) WriteDeclaration(s *SourceFile) {
-	if t.desc.ConvertExpr != "" {
-		s.GoBody.Pn("%s := %s", t.GetVarForC(), t.replace(t.desc.ConvertExpr))
-
-		if t.desc.ConvertClean != "" {
-			s.GoBody.Pn(t.replace(t.desc.ConvertClean))
-		}
-	}
-}
-
-func (t *ParamPassInTemplate) GetExprInCall() string {
-	return t.replace(t.desc.ExprInCall)
-}
-
-func (t *ParamPassInTemplate) GetVarForC() string {
-	return t.param.Name + "0"
-}
-
-func (t *ParamPassInTemplate) GetVarForGo() string {
-	return t.param.Name
-}
-
-func (t *ParamPassInTemplate) GetVarTypeForGo() string {
-	return fmt.Sprintf("%s %s", t.GetVarForGo(), t.desc.TypeForGo )
-}
-
-func getGoParamPassInDesc(typeForC string) *GoParamPassInDesc {
-	return goParamPassInDescMap[typeForC]
-}
-
-func newParamPassInTemplate(param *mygi.Parameter) *ParamPassInTemplate {
-	ctype, err := mygi.ParseCType(param.Type.CType)
-	if err != nil {
-		panic(err)
-	}
-	typeForC := ctype.CgoNotation()
-	passInDesc := getGoParamPassInDesc(typeForC)
-	if passInDesc == nil {
-		panic("fail to get passInDesc for " + typeForC)
-	}
-
-	return &ParamPassInTemplate{
-		param: param,
-		desc: passInDesc,
 	}
 }
 
