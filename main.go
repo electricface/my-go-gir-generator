@@ -3,50 +3,60 @@ package main
 import (
 	"log"
 	"strings"
+	"os"
+	"path/filepath"
 
 	"mygi"
 	"github.com/davecgh/go-spew/spew"
 )
 
-var libCfg *LibConfig
 var repo *mygi.Repository
 
 func main() {
-	var err error
-	repo, err = mygi.Load("Gio", "2.0")
+	dir := os.Args[1]
+	cfg, err := LoadConfig(filepath.Join(dir, "gir-gen.toml"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	//types := repo.GetTypes()
-	//log.Print(len(types))
+	repo, err = mygi.Load(cfg.Namespace, cfg.Version)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	types := repo.GetTypes()
+	log.Print(len(types))
+
+	for _, genFileCfg := range cfg.GenFiles {
+		typeDef := repo.GetType(genFileCfg.Type)
+		if typeDef == nil {
+			panic("fail to get type for " + genFileCfg.Type)
+		}
+
+		pkg := strings.ToLower(cfg.Namespace)
+		sourceFile := NewSourceFile(pkg)
+
+		switch td := typeDef.(type) {
+		case *mygi.Interface:
+			pInterface(sourceFile, td, genFileCfg.Funcs)
+		case *mygi.Class:
+			pClass(sourceFile, td, genFileCfg.Funcs)
+		}
+
+		outFile := filepath.Join(dir, genFileCfg.Filename + "_auto.go")
+		log.Println("outFile:", outFile)
+		sourceFile.Save(outFile)
+	}
+
+
+	//repo.GetType()
 	//
 	//for name, type0 := range types {
 	//	log.Printf("%s -> %T\n", name, type0)
 	//}
-
-	interfaces := repo.Namespace.Interfaces
-	for _, interface0 := range interfaces {
-		if interface0.Name() == "File" {
-			sourceFile := NewSourceFile("gio")
-			pInterface(sourceFile, interface0)
-			//sourceFile.Print()
-			sourceFile.Save("out/appinfo.go")
-		}
-	}
-
-	classes := repo.Namespace.Classes
-	for _, class := range classes {
-		if class.Name() == "Settings" {
-			sourceFile := NewSourceFile("gio")
-			pClass(sourceFile, class)
-			//sourceFile.Print()
-			sourceFile.Save("out/settings.go")
-		}
-	}
 }
 
-func pClass(s *SourceFile, class *mygi.Class) {
+func pClass(s *SourceFile, class *mygi.Class, funcs []string) {
 	name := class.Name()
 	s.GoBody.Pn("// class %s", name)
 
@@ -72,18 +82,15 @@ func pClass(s *SourceFile, class *mygi.Class) {
 	s.GoBody.Pn("}")
 
 	// methods
+	// methods
 	for _, method := range class.Methods {
-		switch method.CIdentifier {
-		case "g_app_info_get_id",
-			"g_app_info_set_as_last_used_for_type",
-			"g_file_replace",
-			"g_settings_get_value":
+		if strSliceContains(funcs, method.CIdentifier)	{
 			pMethod(s, method)
 		}
 	}
 }
 
-func pInterface(s *SourceFile, interface0 *mygi.Interface) {
+func pInterface(s *SourceFile, interface0 *mygi.Interface, funcs []string) {
 	name := interface0.Name()
 	s.GoBody.Pn("// interface %s", name)
 
@@ -110,11 +117,7 @@ func pInterface(s *SourceFile, interface0 *mygi.Interface) {
 
 	// methods
 	for _, method := range interface0.Methods {
-		switch method.CIdentifier {
-		case "g_app_info_get_id",
-		"g_app_info_set_as_last_used_for_type",
-		"g_file_replace",
-		"g_settings_get_value":
+		if strSliceContains(funcs, method.CIdentifier)	{
 			pMethod(s, method)
 		}
 	}
