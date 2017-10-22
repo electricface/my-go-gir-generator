@@ -142,10 +142,18 @@ func pMethod(s *SourceFile, method *mygi.Function) {
 		args = append(args, paramTpl.GetVarTypeForGo())
 	}
 
-
 	argsJoined := strings.Join(args, ", ")
-	rets := ""
-	s.GoBody.Pn("func (%s) %s (%s) %s {", recv, method.Name(), argsJoined, rets)
+
+	retValTpl := newReturnValueTemplate(method.ReturnValue)
+
+	var retTypes []string
+	retTypes = append(retTypes, retValTpl.GetTypeForGo())
+
+	retTypesJoined := strings.Join(retTypes, ", ")
+	if strings.Contains(retTypesJoined, ",") {
+		retTypesJoined = "(" + retTypesJoined + ")"
+	}
+	s.GoBody.Pn("func (%s) %s (%s) %s {", recv, method.Name(), argsJoined, retTypesJoined)
 
 	// start func body
 	instanceParamTpl.WriteDeclaration(s)
@@ -160,7 +168,9 @@ func pMethod(s *SourceFile, method *mygi.Function) {
 		exprsInCall = append(exprsInCall, paramTpl.GetExprInCall())
 	}
 
-	s.GoBody.Pn("ret := C.%s(%s)", method.CIdentifier, strings.Join(exprsInCall,", ") )
+	s.GoBody.Pn("ret0 := C.%s(%s)", method.CIdentifier, strings.Join(exprsInCall,", ") )
+
+	s.GoBody.Pn("return %s", retValTpl.NormalReturn())
 
 	s.GoBody.Pn("}") // end body
 }
