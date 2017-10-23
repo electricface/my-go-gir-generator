@@ -28,7 +28,6 @@ var returnValueDescMap = map[string]*ReturnValueDesc{
 		ErrReturnExpr: "false",
 	},
 
-	// gdouble
 	"C.gdouble": {
 		TypeForGo:     "float64",
 		TypeForC:      "C.double",
@@ -36,25 +35,21 @@ var returnValueDescMap = map[string]*ReturnValueDesc{
 		ErrReturnExpr: "0.0",
 	},
 
-	"*C.GVariant": {
-		TypeForGo:     "glib.Variant",
-		TypeForC:      "*C.GVariant",
-		ReturnExpr:    "glib.WrapVariant(unsafe.Pointer($c))",
-		ErrReturnExpr: "glib.Variant{}",
-	},
-	"*C.GFileOutputStream": {
-		TypeForGo:     "FileOutputStream",
-		TypeForC:      "*C.GFileOutputStream",
-		ReturnExpr:    "wrapFileOutputStream($c)",
-		ErrReturnExpr: "FileOutputStream{}",
-	},
+	// record in other package
+	//"*C.GVariant": {
+	//	TypeForGo:     "glib.Variant",
+	//	TypeForC:      "*C.GVariant",
+	//	ReturnExpr:    "glib.WrapVariant(unsafe.Pointer($c))",
+	//	ErrReturnExpr: "glib.Variant{}",
+	//},
+
 	// class
-	"*C.GSettings": {
-		TypeForGo:     "Settings",
-		TypeForC:      "*C.GSettings",
-		ReturnExpr:    "wrapSettings($c)",
-		ErrReturnExpr: "Settings{}",
-	},
+	//"*C.GSettings": {
+	//	TypeForGo:     "Settings",
+	//	TypeForC:      "*C.GSettings",
+	//	ReturnExpr:    "wrapSettings($c)",
+	//	ErrReturnExpr: "Settings{}",
+	//},
 }
 
 type ReturnValueTemplate struct {
@@ -72,6 +67,94 @@ type ReturnValueDesc struct {
 }
 
 func getReturnValueDesc(ty *mygi.Type) *ReturnValueDesc {
+	// TODO
+	typeDef, ns := repo.GetType(ty.Name)
+	sameNs := isSameNamespace(ns)
+
+	if typeDef != nil {
+		switch typeDef0 := typeDef.(type) {
+		case *mygi.Class:
+			_ = typeDef0
+			cType, err := mygi.ParseCType(ty.CType)
+			if err != nil {
+				panic(err)
+			}
+
+			if cType.NumStar != 1 {
+				panic("assert failed cType.NumStr == 1")
+			}
+			var typeForGo string
+			var retExpr string
+			if sameNs {
+				typeForGo = typeDef.Name()
+				retExpr = "wrap" + typeForGo + "($c)"
+			} else {
+				typeForGo = strings.ToLower(ns) + "." + typeDef.Name()
+				retExpr = strings.ToLower(ns) + ".Wrap" + typeDef.Name() + "(unsafe.Pointer($c))"
+			}
+
+			return &ReturnValueDesc{
+				TypeForGo:     typeForGo,
+				TypeForC:      cType.CgoNotation(),
+				ReturnExpr:    retExpr,
+				ErrReturnExpr: typeForGo + "{}",
+			}
+
+		case *mygi.Record:
+			cType, err := mygi.ParseCType(ty.CType)
+			if err != nil {
+				panic(err)
+			}
+
+			if cType.NumStar != 1 {
+				panic("assert failed cType.NumStr == 1")
+			}
+			var typeForGo string
+			var retExpr string
+			if sameNs {
+				typeForGo = typeDef.Name()
+				retExpr = "wrap" + typeForGo + "($c)"
+			} else {
+				typeForGo = strings.ToLower(ns) + "." + typeDef.Name()
+				// 比如 glib.WrapGVariant(unsafe.Pointer(ret0))
+				retExpr = strings.ToLower(ns) + ".Wrap" + typeDef.Name() + "(unsafe.Pointer($c))"
+			}
+
+			return &ReturnValueDesc{
+				TypeForGo:     typeForGo,
+				TypeForC:      cType.CgoNotation(),
+				ReturnExpr:    retExpr,
+				ErrReturnExpr: typeForGo + "{}",
+			}
+
+		case *mygi.Interface:
+			cType, err := mygi.ParseCType(ty.CType)
+			if err != nil {
+				panic(err)
+			}
+
+			if cType.NumStar != 1 {
+				panic("assert failed cType.NumStr == 1")
+			}
+			var typeForGo string
+			var retExpr string
+			if sameNs {
+				typeForGo = typeDef.Name()
+				retExpr = "wrap" + typeForGo + "($c)"
+			} else {
+				typeForGo = strings.ToLower(ns) + "." + typeDef.Name()
+				retExpr = strings.ToLower(ns) + ".Wrap" + typeDef.Name() + "(unsafe.Pointer($c))"
+			}
+
+			return &ReturnValueDesc{
+				TypeForGo:     typeForGo,
+				TypeForC:      cType.CgoNotation(),
+				ReturnExpr:    retExpr,
+				ErrReturnExpr: typeForGo + "{}",
+			}
+		}
+	}
+
 	cType, err := mygi.ParseCType(ty.CType)
 	if err != nil {
 		panic(err)

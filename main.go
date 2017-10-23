@@ -2,12 +2,12 @@ package main
 
 import (
 	"log"
-	"strings"
 	"os"
 	"path/filepath"
+	"strings"
 
-	"mygi"
 	"github.com/davecgh/go-spew/spew"
+	"mygi"
 )
 
 var repo *mygi.Repository
@@ -28,9 +28,12 @@ func main() {
 	log.Print(len(types))
 
 	for _, genFileCfg := range cfg.GenFiles {
-		typeDef := repo.GetType(genFileCfg.Type)
+		typeDef, ns := repo.GetType(genFileCfg.Type)
 		if typeDef == nil {
 			panic("fail to get type for " + genFileCfg.Type)
+		}
+		if ns != cfg.Namespace {
+			panic("assert failed ns == cfg.Namespace")
 		}
 
 		pkg := strings.ToLower(cfg.Namespace)
@@ -43,11 +46,10 @@ func main() {
 			pClass(sourceFile, td, genFileCfg.Funcs)
 		}
 
-		outFile := filepath.Join(dir, genFileCfg.Filename + "_auto.go")
+		outFile := filepath.Join(dir, genFileCfg.Filename+"_auto.go")
 		log.Println("outFile:", outFile)
 		sourceFile.Save(outFile)
 	}
-
 
 	//repo.GetType()
 	//
@@ -60,7 +62,7 @@ func pClass(s *SourceFile, class *mygi.Class, funcs []string) {
 	name := class.Name()
 	s.GoBody.Pn("// class %s", name)
 
-	s.GoBody.Pn("type %s struct {", name )
+	s.GoBody.Pn("type %s struct {", name)
 	s.GoBody.Pn("Ptr unsafe.Pointer")
 	s.GoBody.Pn("}")
 
@@ -72,19 +74,19 @@ func pClass(s *SourceFile, class *mygi.Class, funcs []string) {
 	s.GoBody.Pn("}")
 
 	// method wrapXXX
-	s.GoBody.Pn("func wrap%s(p %s) %s {", name, cPtrType, name )
+	s.GoBody.Pn("func wrap%s(p %s) %s {", name, cPtrType, name)
 	s.GoBody.Pn("return %s{unsafe.Pointer(p)}", name)
 	s.GoBody.Pn("}")
 
 	// method WrapXXX
-	s.GoBody.Pn("func Wrap%s(p unsafe.Pointer) %s {", name, name )
+	s.GoBody.Pn("func Wrap%s(p unsafe.Pointer) %s {", name, name)
 	s.GoBody.Pn("return %s{p}", name)
 	s.GoBody.Pn("}")
 
 	// methods
 	// methods
 	for _, method := range class.Methods {
-		if strSliceContains(funcs, method.CIdentifier)	{
+		if strSliceContains(funcs, method.CIdentifier) {
 			pMethod(s, method)
 		}
 	}
@@ -94,7 +96,7 @@ func pInterface(s *SourceFile, interface0 *mygi.Interface, funcs []string) {
 	name := interface0.Name()
 	s.GoBody.Pn("// interface %s", name)
 
-	s.GoBody.Pn("type %s struct {", name )
+	s.GoBody.Pn("type %s struct {", name)
 	s.GoBody.Pn("Ptr unsafe.Pointer")
 	s.GoBody.Pn("}")
 
@@ -106,18 +108,18 @@ func pInterface(s *SourceFile, interface0 *mygi.Interface, funcs []string) {
 	s.GoBody.Pn("}")
 
 	// method wrapXXX
-	s.GoBody.Pn("func wrap%s(p %s) %s {", name, cPtrType, name )
+	s.GoBody.Pn("func wrap%s(p %s) %s {", name, cPtrType, name)
 	s.GoBody.Pn("return %s{unsafe.Pointer(p)}", name)
 	s.GoBody.Pn("}")
 
 	// method WrapXXX
-	s.GoBody.Pn("func Wrap%s(p unsafe.Pointer) %s {", name, name )
+	s.GoBody.Pn("func Wrap%s(p unsafe.Pointer) %s {", name, name)
 	s.GoBody.Pn("return %s{p}", name)
 	s.GoBody.Pn("}")
 
 	// methods
 	for _, method := range interface0.Methods {
-		if strSliceContains(funcs, method.CIdentifier)	{
+		if strSliceContains(funcs, method.CIdentifier) {
 			pMethod(s, method)
 		}
 	}
@@ -168,7 +170,7 @@ func pMethod(s *SourceFile, method *mygi.Function) {
 		exprsInCall = append(exprsInCall, paramTpl.GetExprInCall())
 	}
 
-	s.GoBody.Pn("ret0 := C.%s(%s)", method.CIdentifier, strings.Join(exprsInCall,", ") )
+	s.GoBody.Pn("ret0 := C.%s(%s)", method.CIdentifier, strings.Join(exprsInCall, ", "))
 
 	retValTpl.WriteClean(s)
 

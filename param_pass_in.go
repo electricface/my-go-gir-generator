@@ -1,9 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"mygi"
 	"strings"
-	"fmt"
 )
 
 var goParamPassInDescMap = map[string]*GoParamPassInDesc{
@@ -46,19 +46,19 @@ var goParamPassInDescMap = map[string]*GoParamPassInDesc{
 
 	// string
 	"*C.char": {
-		TypeForGo: "string",
-		TypeForC: "*C.char",
-		ConvertExpr: "C.CString($g)",
-		ConvertClean:"defer C.free(unsafe.Pointer($c))",
-		ExprInCall: "$c",
+		TypeForGo:    "string",
+		TypeForC:     "*C.char",
+		ConvertExpr:  "C.CString($g)",
+		ConvertClean: "defer C.free(unsafe.Pointer($c))",
+		ExprInCall:   "$c",
 	},
 
 	"*C.gchar": {
-		TypeForGo: "string",
-		TypeForC: "*C.gchar",
-		ConvertExpr: "(*C.gchar)(C.CString($g))",
-		ConvertClean:"defer C.free(unsafe.Pointer($c))",
-		ExprInCall: "$c",
+		TypeForGo:    "string",
+		TypeForC:     "*C.gchar",
+		ConvertExpr:  "(*C.gchar)(C.CString($g))",
+		ConvertClean: "defer C.free(unsafe.Pointer($c))",
+		ExprInCall:   "$c",
 	},
 }
 
@@ -73,7 +73,7 @@ type GoParamPassInDesc struct {
 
 type ParamPassInTemplate struct {
 	param *mygi.Parameter
-	desc *GoParamPassInDesc
+	desc  *GoParamPassInDesc
 }
 
 func (t *ParamPassInTemplate) replace(in string) string {
@@ -109,12 +109,17 @@ func (t *ParamPassInTemplate) GetVarForGo() string {
 }
 
 func (t *ParamPassInTemplate) GetVarTypeForGo() string {
-	return fmt.Sprintf("%s %s", t.GetVarForGo(), t.desc.TypeForGo )
+	return fmt.Sprintf("%s %s", t.GetVarForGo(), t.desc.TypeForGo)
+}
+
+func isSameNamespace(ns string) bool {
+	return ns == repo.Namespace.Name
 }
 
 func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 	// TODO
-	typeDef := repo.GetType(ty.Name)
+	typeDef, ns := repo.GetType(ty.Name)
+	sameNs := isSameNamespace(ns)
 	//if typeDef == nil {
 	//	panic("failed to get type define for " + ty.Name)
 	//}
@@ -122,9 +127,16 @@ func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 		switch typeDef0 := typeDef.(type) {
 		case *mygi.Enum:
 			_ = typeDef0
+			var typeForGo string
+			if sameNs {
+				typeForGo = typeDef.Name()
+			} else {
+				typeForGo = strings.ToLower(ns) + "." + typeDef.Name()
+			}
+
 			return &GoParamPassInDesc{
-				TypeForGo: typeDef.Name(),
-				TypeForC: typeDef.CType().CgoNotation(),
+				TypeForGo:  typeForGo,
+				TypeForC:   typeDef.CType().CgoNotation(),
 				ExprInCall: "$C($g)",
 			}
 
@@ -138,10 +150,22 @@ func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 				panic("assert failed cType.NumStr == 1")
 			}
 
+			var typeForGo string
+			var exprInCall string
+			if sameNs {
+				typeForGo = typeDef.Name()
+				exprInCall = "$g.native()"
+			} else {
+				typeForGo = strings.ToLower(ns) + "." + typeDef.Name()
+				// 不能使用 native 方法了
+				// 比如 (*C.GFile)(file.Ptr)
+				exprInCall = "($C)($g.Ptr)"
+			}
+
 			return &GoParamPassInDesc{
-				TypeForGo: typeDef.Name(),
-				TypeForC: cType.CgoNotation(),
-				ExprInCall: "$g.native()",
+				TypeForGo:  typeForGo,
+				TypeForC:   cType.CgoNotation(),
+				ExprInCall: exprInCall,
 			}
 
 		case *mygi.Class:
@@ -154,10 +178,22 @@ func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 				panic("assert failed cType.NumStr == 1")
 			}
 
+			var typeForGo string
+			var exprInCall string
+			if sameNs {
+				typeForGo = typeDef.Name()
+				exprInCall = "$g.native()"
+			} else {
+				typeForGo = strings.ToLower(ns) + "." + typeDef.Name()
+				// 不能使用 native 方法了
+				// 比如 (*C.GFile)(file.Ptr)
+				exprInCall = "($C)($g.Ptr)"
+			}
+
 			return &GoParamPassInDesc{
-				TypeForGo: typeDef.Name(),
-				TypeForC: cType.CgoNotation(),
-				ExprInCall: "$g.native()",
+				TypeForGo:  typeForGo,
+				TypeForC:   cType.CgoNotation(),
+				ExprInCall: exprInCall,
 			}
 		}
 	}
@@ -178,7 +214,6 @@ func newParamPassInTemplate(param *mygi.Parameter) *ParamPassInTemplate {
 
 	return &ParamPassInTemplate{
 		param: param,
-		desc: passInDesc,
+		desc:  passInDesc,
 	}
 }
-
