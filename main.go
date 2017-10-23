@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"fmt"
 	"github.com/davecgh/go-spew/spew"
 	"mygi"
 )
@@ -146,10 +147,12 @@ func pMethod(s *SourceFile, method *mygi.Function) {
 
 	argsJoined := strings.Join(args, ", ")
 
-	retValTpl := newReturnValueTemplate(method.ReturnValue)
-
 	var retTypes []string
-	retTypes = append(retTypes, retValTpl.GetTypeForGo())
+	var retValTpl *ReturnValueTemplate
+	if method.ReturnValue.Type.Name != "none" {
+		retValTpl = newReturnValueTemplate(method.ReturnValue)
+		retTypes = append(retTypes, retValTpl.GetTypeForGo())
+	}
 
 	retTypesJoined := strings.Join(retTypes, ", ")
 	if strings.Contains(retTypesJoined, ",") {
@@ -170,11 +173,16 @@ func pMethod(s *SourceFile, method *mygi.Function) {
 		exprsInCall = append(exprsInCall, paramTpl.GetExprInCall())
 	}
 
-	s.GoBody.Pn("ret0 := C.%s(%s)", method.CIdentifier, strings.Join(exprsInCall, ", "))
+	call := fmt.Sprintf("C.%s(%s)", method.CIdentifier, strings.Join(exprsInCall, ", "))
+	if retValTpl != nil {
+		s.GoBody.P("ret0 := ")
+	}
+	s.GoBody.Pn(call)
 
-	retValTpl.WriteClean(s)
-
-	s.GoBody.Pn("return %s", retValTpl.NormalReturn())
+	if retValTpl != nil {
+		retValTpl.WriteClean(s)
+		s.GoBody.Pn("return %s", retValTpl.NormalReturn())
+	}
 
 	s.GoBody.Pn("}") // end body
 }
