@@ -153,6 +153,9 @@ func pMethod(s *SourceFile, method *mygi.Function) {
 		retValTpl = newReturnValueTemplate(method.ReturnValue)
 		retTypes = append(retTypes, retValTpl.GetTypeForGo())
 	}
+	if method.Throws {
+		retTypes = append(retTypes, "error")
+	}
 
 	retTypesJoined := strings.Join(retTypes, ", ")
 	if strings.Contains(retTypesJoined, ",") {
@@ -167,10 +170,17 @@ func pMethod(s *SourceFile, method *mygi.Function) {
 		paramTpl.WriteDeclaration(s)
 	}
 
+	if method.Throws {
+		s.GoBody.Pn("var err glib.Error")
+	}
+
 	var exprsInCall []string
 	exprsInCall = append(exprsInCall, instanceParamTpl.GetExprInCall())
 	for _, paramTpl := range paramTpls {
 		exprsInCall = append(exprsInCall, paramTpl.GetExprInCall())
+	}
+	if method.Throws {
+		exprsInCall = append(exprsInCall, "(**C.GError)(unsafe.Pointer(&err))")
 	}
 
 	call := fmt.Sprintf("C.%s(%s)", method.CIdentifier, strings.Join(exprsInCall, ", "))
@@ -180,8 +190,27 @@ func pMethod(s *SourceFile, method *mygi.Function) {
 	s.GoBody.Pn(call)
 
 	if retValTpl != nil {
-		retValTpl.WriteClean(s)
-		s.GoBody.Pn("return %s", retValTpl.NormalReturn())
+		if method.Throws {
+			s.GoBody.Pn("if err.Ptr != nil {")
+			s.GoBody.Pn("defer err.Free()")
+			s.GoBody.Pn("return %s, err.GoValue()", retValTpl.ErrorReturn())
+			s.GoBody.Pn("}")
+			retValTpl.WriteClean(s)
+			s.GoBody.Pn("return %s,nil", retValTpl.NormalReturn())
+		} else {
+			retValTpl.WriteClean(s)
+			s.GoBody.Pn("return %s", retValTpl.NormalReturn())
+		}
+
+	} else {
+		// retValTpl is nil
+		if method.Throws {
+			s.GoBody.Pn("if err.Ptr != nil {")
+			s.GoBody.Pn("defer err.Free()")
+			s.GoBody.Pn("return err.GoValue()")
+			s.GoBody.Pn("}")
+			s.GoBody.Pn("return nil")
+		}
 	}
 
 	s.GoBody.Pn("}") // end body
