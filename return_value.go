@@ -7,43 +7,68 @@ import (
 
 var returnValueDescMap = map[string]*ReturnValueDesc{
 	"*C.char": {
-		TypeForGo: "string",
-		TypeForC: "*C.char",
-		ReturnExpr: "C.GoString($c)",
+		TypeForGo:     "string",
+		TypeForC:      "*C.char",
+		ReturnExpr:    "C.GoString($c)",
+		Clean:         "defer C.g_free(C.gpointer($c))",
 		ErrReturnExpr: `""`,
 	},
 	"*C.gchar": {
-		TypeForGo: "string",
-		TypeForC: "*C.gchar",
-		ReturnExpr: "C.GoString((*C.char)($c))",
+		TypeForGo:     "string",
+		TypeForC:      "*C.gchar",
+		ReturnExpr:    "C.GoString((*C.char)($c))",
+		Clean:         "defer C.g_free(C.gpointer($c))",
 		ErrReturnExpr: `""`,
 	},
 
-	"*C.GVariant":{
-		TypeForGo: "glib.Variant",
-		TypeForC: "*C.GVariant",
-		ReturnExpr: "glib.WrapVariant(unsafe.Pointer($c))",
+	"C.gboolean": {
+		TypeForGo:     "bool",
+		TypeForC:      "C.gboolean",
+		ReturnExpr:    "mygiutil.Int2Bool(int($c))",
+		ErrReturnExpr: "false",
+	},
+
+	// gdouble
+	"C.gdouble": {
+		TypeForGo:     "float64",
+		TypeForC:      "C.double",
+		ReturnExpr:    "float64($c)",
+		ErrReturnExpr: "0.0",
+	},
+
+	"*C.GVariant": {
+		TypeForGo:     "glib.Variant",
+		TypeForC:      "*C.GVariant",
+		ReturnExpr:    "glib.WrapVariant(unsafe.Pointer($c))",
 		ErrReturnExpr: "glib.Variant{}",
 	},
 	"*C.GFileOutputStream": {
-		TypeForGo: "FileOutputStream",
-		TypeForC: "*C.GFileOutputStream",
-		ReturnExpr: "wrapFileOutputStream($c)",
+		TypeForGo:     "FileOutputStream",
+		TypeForC:      "*C.GFileOutputStream",
+		ReturnExpr:    "wrapFileOutputStream($c)",
 		ErrReturnExpr: "FileOutputStream{}",
+	},
+	// class
+	"*C.GSettings": {
+		TypeForGo:     "Settings",
+		TypeForC:      "*C.GSettings",
+		ReturnExpr:    "wrapSettings($c)",
+		ErrReturnExpr: "Settings{}",
 	},
 }
 
 type ReturnValueTemplate struct {
 	param *mygi.Parameter
-	desc *ReturnValueDesc
+	desc  *ReturnValueDesc
 }
 
 type ReturnValueDesc struct {
 	TypeForC string
 
-	TypeForGo string
-	ReturnExpr string
+	TypeForGo     string
+	ReturnExpr    string
 	ErrReturnExpr string
+	Clean         string
 }
 
 func getReturnValueDesc(ty *mygi.Type) *ReturnValueDesc {
@@ -52,7 +77,37 @@ func getReturnValueDesc(ty *mygi.Type) *ReturnValueDesc {
 		panic(err)
 	}
 	typeForC := cType.CgoNotation()
+
+	desc := getReturnValueDescForIntegerType(typeForC)
+	if desc != nil {
+		// typeForC is integer type
+		return desc
+	}
+
 	return returnValueDescMap[typeForC]
+}
+
+func getReturnValueDescForIntegerType(cgoType string) *ReturnValueDesc {
+	typ := strings.TrimPrefix(cgoType, "C.")
+	switch typ {
+	case "gint", "guint",
+		"gint8", "guint8",
+		"gint16", "guint16",
+		"gint32", "guint32",
+		"gint64", "guint64":
+
+		typeForGo := strings.TrimPrefix(typ, "g")
+
+		return &ReturnValueDesc{
+			TypeForGo:     typeForGo,
+			TypeForC:      cgoType,
+			ReturnExpr:    typeForGo + "($c)",
+			ErrReturnExpr: "0",
+		}
+
+	default:
+		return nil
+	}
 }
 
 func newReturnValueTemplate(param *mygi.Parameter) *ReturnValueTemplate {
@@ -63,7 +118,7 @@ func newReturnValueTemplate(param *mygi.Parameter) *ReturnValueTemplate {
 
 	return &ReturnValueTemplate{
 		param: param,
-		desc: desc,
+		desc:  desc,
 	}
 }
 
@@ -84,6 +139,19 @@ func (t *ReturnValueTemplate) GetVarForGo() string {
 
 func (t *ReturnValueTemplate) GetTypeForGo() string {
 	return t.desc.TypeForGo
+}
+
+func (t *ReturnValueTemplate) WriteClean(s *SourceFile) {
+	ownership := t.param.TransferOwnership
+	if ownership == "none" {
+		return
+	}
+
+	if ownership == "full" {
+		if t.desc.Clean != "" {
+			s.GoBody.Pn(t.replace(t.desc.Clean))
+		}
+	}
 }
 
 func (t *ReturnValueTemplate) NormalReturn() string {

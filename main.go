@@ -170,6 +170,8 @@ func pMethod(s *SourceFile, method *mygi.Function) {
 
 	s.GoBody.Pn("ret0 := C.%s(%s)", method.CIdentifier, strings.Join(exprsInCall,", ") )
 
+	retValTpl.WriteClean(s)
+
 	s.GoBody.Pn("return %s", retValTpl.NormalReturn())
 
 	s.GoBody.Pn("}") // end body
