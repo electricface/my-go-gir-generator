@@ -60,6 +60,7 @@ func main() {
 }
 
 func pClass(s *SourceFile, class *mygi.Class, funcs []string) {
+	s.AddGoImport("unsafe")
 	name := class.Name()
 	s.GoBody.Pn("// class %s", name)
 
@@ -85,7 +86,6 @@ func pClass(s *SourceFile, class *mygi.Class, funcs []string) {
 	s.GoBody.Pn("}")
 
 	// methods
-	// methods
 	for _, method := range class.Methods {
 		if strSliceContains(funcs, method.CIdentifier) {
 			pMethod(s, method)
@@ -94,6 +94,7 @@ func pClass(s *SourceFile, class *mygi.Class, funcs []string) {
 }
 
 func pInterface(s *SourceFile, interface0 *mygi.Interface, funcs []string) {
+	s.AddGoImport("unsafe")
 	name := interface0.Name()
 	s.GoBody.Pn("// interface %s", name)
 
@@ -171,6 +172,7 @@ func pMethod(s *SourceFile, method *mygi.Function) {
 	}
 
 	if method.Throws {
+		s.AddGirImport("glib")
 		s.GoBody.Pn("var err glib.Error")
 	}
 
