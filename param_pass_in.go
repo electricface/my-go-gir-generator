@@ -116,6 +116,30 @@ func isSameNamespace(ns string) bool {
 	return ns == repo.Namespace.Name
 }
 
+func getGoParamPassInDescForIntegerType(cgoType string) *GoParamPassInDesc {
+	typ := strings.TrimPrefix(cgoType, "C.")
+	switch typ {
+	case "gint", "guint",
+		"gint8", "guint8",
+		"gint16", "guint16",
+		"gint32", "guint32",
+		"gint64", "guint64":
+
+		typeForGo := strings.TrimPrefix(typ, "g")
+
+		return &GoParamPassInDesc{
+			TypeForGo:    typeForGo,
+			TypeForC:     cgoType,
+			ConvertExpr:  "",
+			ConvertClean: "",
+			ExprInCall:   "$C($g)",
+		}
+
+	default:
+		return nil
+	}
+}
+
 func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 	// TODO
 	typeDef, ns := repo.GetType(ty.Name)
@@ -229,6 +253,12 @@ func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 		panic(err)
 	}
 	typeForC := cType.CgoNotation()
+
+	desc := getGoParamPassInDescForIntegerType(typeForC)
+	if desc != nil {
+		return desc
+	}
+
 	return goParamPassInDescMap[typeForC]
 }
 

@@ -6,15 +6,15 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 
 	"mygi"
-	"path/filepath"
 )
 
 type SourceFile struct {
-	//Filename string
 	Pkg       string
 	CPkgs     []string
 	CIncludes []string
@@ -44,7 +44,7 @@ func (v *SourceFile) Print() {
 func (v *SourceFile) Save(filename string) {
 	f, err := os.Create(filename)
 	if err != nil {
-		panic(err)
+		log.Fatal("fail to create file:", err)
 	}
 	defer f.Close()
 
@@ -52,7 +52,12 @@ func (v *SourceFile) Save(filename string) {
 
 	err = f.Sync()
 	if err != nil {
-		panic(err)
+		log.Fatal("fail to sync file:", err)
+	}
+
+	err = exec.Command("go", "fmt", filename).Run()
+	if err != nil {
+		log.Fatal("failed to format file:", filename)
 	}
 }
 
@@ -123,10 +128,9 @@ func (s *SourceFile) AddGoImport(imp string) {
 func (s *SourceFile) AddGirImport(ns string) {
 	repo := mygi.GetLoadedRepo(ns)
 	if repo == nil {
-		panic("failed to get loaded repo " + ns)
+		log.Fatal("failed to get loaded repo ", ns)
 	}
 	base := strings.ToLower(repo.Namespace.Name) + "-" + repo.Namespace.Version
-	//fullPath := "github.com/electricface/go-auto-gir/" + base
 	fullPath := filepath.Join(getGirProjectRoot(), base)
 	s.AddGoImport(fullPath)
 }
