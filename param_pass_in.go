@@ -41,7 +41,7 @@ var goParamPassInDescMap = map[string]*GoParamPassInDesc{
 		TypeForC:     "C.gboolean",
 		ConvertExpr:  "",
 		ConvertClean: "",
-		ExprInCall:   "toGBool($g)",
+		ExprInCall:   "$C(util.Bool2Int($g)) /*go:.util*/",
 	},
 
 	// string
@@ -49,7 +49,7 @@ var goParamPassInDescMap = map[string]*GoParamPassInDesc{
 		TypeForGo:    "string",
 		TypeForC:     "*C.char",
 		ConvertExpr:  "C.CString($g)",
-		ConvertClean: "defer C.free(unsafe.Pointer($c))",
+		ConvertClean: "defer C.free(unsafe.Pointer($c)) /*ch:<stdlib.h>*/",
 		ExprInCall:   "$c",
 	},
 
@@ -57,7 +57,7 @@ var goParamPassInDescMap = map[string]*GoParamPassInDesc{
 		TypeForGo:    "string",
 		TypeForC:     "*C.gchar",
 		ConvertExpr:  "(*C.gchar)(C.CString($g))",
-		ConvertClean: "defer C.free(unsafe.Pointer($c))",
+		ConvertClean: "defer C.free(unsafe.Pointer($c)) /*ch:<stdlib.h>*/",
 		ExprInCall:   "$c",
 	},
 }

@@ -139,6 +139,7 @@ type SourceBody struct {
 // gir:glib -> project_root/glib-2.0
 // go:.util -> project_root/util
 // go:string -> string
+// ch:<stdlib.h>
 
 var requireReg = regexp.MustCompile(`/\*(\w+):(.+?)\*/`)
 
@@ -159,6 +160,9 @@ func (v *SourceBody) writeStr(str string) {
 
 		case "gir":
 			v.sourceFile.AddGirImport(arg)
+
+		case "ch":
+			v.sourceFile.AddCInclude(arg)
 		}
 	}
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"mygi"
 	"strings"
 )
@@ -70,6 +71,7 @@ func getReturnValueDesc(ty *mygi.Type) *ReturnValueDesc {
 	// TODO
 	typeDef, ns := repo.GetType(ty.Name)
 	sameNs := isSameNamespace(ns)
+	ns = strings.ToLower(ns)
 
 	if typeDef != nil {
 		switch typeDef0 := typeDef.(type) {
@@ -89,8 +91,10 @@ func getReturnValueDesc(ty *mygi.Type) *ReturnValueDesc {
 				typeForGo = typeDef.Name()
 				retExpr = "wrap" + typeForGo + "($c)"
 			} else {
-				typeForGo = strings.ToLower(ns) + "." + typeDef.Name()
-				retExpr = strings.ToLower(ns) + ".Wrap" + typeDef.Name() + "(unsafe.Pointer($c))"
+				typeForGo = ns + "." + typeDef.Name()
+				retExpr = ns + ".Wrap" + typeDef.Name() + "(unsafe.Pointer($c))" +
+					fmt.Sprintf("/*gir:%s*/", ns)
+
 			}
 
 			return &ReturnValueDesc{
@@ -115,9 +119,10 @@ func getReturnValueDesc(ty *mygi.Type) *ReturnValueDesc {
 				typeForGo = typeDef.Name()
 				retExpr = "wrap" + typeForGo + "($c)"
 			} else {
-				typeForGo = strings.ToLower(ns) + "." + typeDef.Name()
+				typeForGo = ns + "." + typeDef.Name()
 				// 比如 glib.WrapGVariant(unsafe.Pointer(ret0))
-				retExpr = strings.ToLower(ns) + ".Wrap" + typeDef.Name() + "(unsafe.Pointer($c))"
+				retExpr = ns + ".Wrap" + typeDef.Name() + "(unsafe.Pointer($c))" +
+					fmt.Sprintf("/*gir:%s*/", ns)
 			}
 
 			return &ReturnValueDesc{
@@ -142,8 +147,10 @@ func getReturnValueDesc(ty *mygi.Type) *ReturnValueDesc {
 				typeForGo = typeDef.Name()
 				retExpr = "wrap" + typeForGo + "($c)"
 			} else {
-				typeForGo = strings.ToLower(ns) + "." + typeDef.Name()
-				retExpr = strings.ToLower(ns) + ".Wrap" + typeDef.Name() + "(unsafe.Pointer($c))"
+
+				typeForGo = ns + "." + typeDef.Name()
+				retExpr = ns + ".Wrap" + typeDef.Name() + "(unsafe.Pointer($c))" +
+					fmt.Sprintf("/*gir:%s*/", ns)
 			}
 
 			return &ReturnValueDesc{
