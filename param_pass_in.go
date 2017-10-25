@@ -125,7 +125,7 @@ func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 	//}
 	if typeDef != nil {
 		switch typeDef0 := typeDef.(type) {
-		case *mygi.Enum:
+		case *mygi.EnumInfo:
 			_ = typeDef0
 			var typeForGo string
 			if sameNs {
@@ -140,7 +140,7 @@ func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 				ExprInCall: "$C($g)",
 			}
 
-		case *mygi.Interface:
+		case *mygi.InterfaceInfo:
 			cType, err := mygi.ParseCType(ty.CType)
 			if err != nil {
 				panic(err)
@@ -168,7 +168,7 @@ func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 				ExprInCall: exprInCall,
 			}
 
-		case *mygi.Class:
+		case *mygi.ObjectInfo:
 			cType, err := mygi.ParseCType(ty.CType)
 			if err != nil {
 				panic(err)

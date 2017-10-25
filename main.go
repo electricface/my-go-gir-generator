@@ -41,10 +41,10 @@ func main() {
 		sourceFile := NewSourceFile(pkg)
 
 		switch td := typeDef.(type) {
-		case *mygi.Interface:
+		case *mygi.InterfaceInfo:
 			pInterface(sourceFile, td, genFileCfg.Funcs)
-		case *mygi.Class:
-			pClass(sourceFile, td, genFileCfg.Funcs)
+		case *mygi.ObjectInfo:
+			pObject(sourceFile, td, genFileCfg.Funcs)
 		}
 
 		outFile := filepath.Join(dir, genFileCfg.Filename+"_auto.go")
@@ -59,10 +59,10 @@ func main() {
 	//}
 }
 
-func pClass(s *SourceFile, class *mygi.Class, funcs []string) {
+func pObject(s *SourceFile, class *mygi.ObjectInfo, funcs []string) {
 	s.AddGoImport("unsafe")
 	name := class.Name()
-	s.GoBody.Pn("// class %s", name)
+	s.GoBody.Pn("// object %s", name)
 
 	s.GoBody.Pn("type %s struct {", name)
 	s.GoBody.Pn("Ptr unsafe.Pointer")
@@ -93,16 +93,16 @@ func pClass(s *SourceFile, class *mygi.Class, funcs []string) {
 	}
 }
 
-func pInterface(s *SourceFile, interface0 *mygi.Interface, funcs []string) {
+func pInterface(s *SourceFile, ifc *mygi.InterfaceInfo, funcs []string) {
 	s.AddGoImport("unsafe")
-	name := interface0.Name()
+	name := ifc.Name()
 	s.GoBody.Pn("// interface %s", name)
 
 	s.GoBody.Pn("type %s struct {", name)
 	s.GoBody.Pn("Ptr unsafe.Pointer")
 	s.GoBody.Pn("}")
 
-	cPtrType := "*C." + interface0.CTypeAttr
+	cPtrType := "*C." + ifc.CTypeAttr
 
 	// method native
 	s.GoBody.Pn("func (v %s) native() %s {", name, cPtrType)
@@ -120,14 +120,14 @@ func pInterface(s *SourceFile, interface0 *mygi.Interface, funcs []string) {
 	s.GoBody.Pn("}")
 
 	// methods
-	for _, method := range interface0.Methods {
+	for _, method := range ifc.Methods {
 		if strSliceContains(funcs, method.CIdentifier) {
 			pMethod(s, method)
 		}
 	}
 }
 
-func pMethod(s *SourceFile, method *mygi.Function) {
+func pMethod(s *SourceFile, method *mygi.FunctionInfo) {
 	spew.Dump(method)
 	s.GoBody.Pn("// wrap for %s", method.CIdentifier)
 

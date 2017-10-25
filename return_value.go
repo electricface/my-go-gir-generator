@@ -73,7 +73,7 @@ func getReturnValueDesc(ty *mygi.Type) *ReturnValueDesc {
 
 	if typeDef != nil {
 		switch typeDef0 := typeDef.(type) {
-		case *mygi.Class:
+		case *mygi.ObjectInfo:
 			_ = typeDef0
 			cType, err := mygi.ParseCType(ty.CType)
 			if err != nil {
@@ -100,7 +100,7 @@ func getReturnValueDesc(ty *mygi.Type) *ReturnValueDesc {
 				ErrReturnExpr: typeForGo + "{}",
 			}
 
-		case *mygi.Record:
+		case *mygi.StructInfo:
 			cType, err := mygi.ParseCType(ty.CType)
 			if err != nil {
 				panic(err)
@@ -127,7 +127,7 @@ func getReturnValueDesc(ty *mygi.Type) *ReturnValueDesc {
 				ErrReturnExpr: typeForGo + "{}",
 			}
 
-		case *mygi.Interface:
+		case *mygi.InterfaceInfo:
 			cType, err := mygi.ParseCType(ty.CType)
 			if err != nil {
 				panic(err)
