@@ -12,13 +12,35 @@ import (
 )
 
 var repo *mygi.Repository
+var girProjectRoot string
+
+func getGirProjectRoot() string {
+	return girProjectRoot
+}
+
+func setGirProjectRoot(v string) {
+	girProjectRoot = v
+}
 
 func main() {
 	dir := os.Args[1]
+	dir, err := filepath.Abs(dir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	cfg, err := LoadConfig(filepath.Join(dir, "gir-gen.toml"))
 	if err != nil {
 		log.Fatal(err)
 	}
+	goPath := os.Getenv("GOPATH")
+	goSrcPrefix := filepath.Join(goPath, "src") + "/"
+
+	if !strings.HasPrefix(dir, goSrcPrefix) {
+		log.Fatalf("dir %q is not in go path %q", dir, goPath)
+	}
+
+	setGirProjectRoot(strings.TrimPrefix(filepath.Dir(dir), goSrcPrefix))
 
 	repo, err = mygi.Load(cfg.Namespace, cfg.Version)
 	if err != nil {
@@ -41,10 +63,22 @@ func main() {
 		sourceFile := NewSourceFile(pkg)
 
 		switch td := typeDef.(type) {
+		case *mygi.StructInfo:
+			pStruct(sourceFile, td, genFileCfg.Funcs)
 		case *mygi.InterfaceInfo:
 			pInterface(sourceFile, td, genFileCfg.Funcs)
 		case *mygi.ObjectInfo:
 			pObject(sourceFile, td, genFileCfg.Funcs)
+		}
+
+		// cgo pkg-config
+		for _, pkg := range repo.Packages {
+			sourceFile.AddCPkg(pkg.Name)
+		}
+
+		// c header files
+		for _, cInc := range repo.CIncludes() {
+			sourceFile.AddCInclude("<" + cInc.Name + ">")
 		}
 
 		outFile := filepath.Join(dir, genFileCfg.Filename+"_auto.go")
@@ -59,10 +93,44 @@ func main() {
 	//}
 }
 
+func pStruct(s *SourceFile, struct0 *mygi.StructInfo, funcs []string) {
+	s.AddGoImport("unsafe")
+	name := struct0.Name()
+	s.GoBody.Pn("// Struct %s", name)
+
+	s.GoBody.Pn("type %s struct {", name)
+	s.GoBody.Pn("Ptr unsafe.Pointer")
+	s.GoBody.Pn("}")
+
+	cPtrType := "*C." + struct0.CTypeAttr
+
+	// method native
+	s.GoBody.Pn("func (v %s) native() %s {", name, cPtrType)
+	s.GoBody.Pn("return (%s)(v.Ptr)", cPtrType)
+	s.GoBody.Pn("}")
+
+	// method wrapXXX
+	s.GoBody.Pn("func wrap%s(p %s) %s {", name, cPtrType, name)
+	s.GoBody.Pn("return %s{unsafe.Pointer(p)}", name)
+	s.GoBody.Pn("}")
+
+	// method WrapXXX
+	s.GoBody.Pn("func Wrap%s(p unsafe.Pointer) %s {", name, name)
+	s.GoBody.Pn("return %s{p}", name)
+	s.GoBody.Pn("}")
+
+	// methods
+	for _, method := range struct0.Methods {
+		if strSliceContains(funcs, method.CIdentifier) {
+			pMethod(s, method)
+		}
+	}
+}
+
 func pObject(s *SourceFile, class *mygi.ObjectInfo, funcs []string) {
 	s.AddGoImport("unsafe")
 	name := class.Name()
-	s.GoBody.Pn("// object %s", name)
+	s.GoBody.Pn("// Object %s", name)
 
 	s.GoBody.Pn("type %s struct {", name)
 	s.GoBody.Pn("Ptr unsafe.Pointer")
@@ -96,7 +164,7 @@ func pObject(s *SourceFile, class *mygi.ObjectInfo, funcs []string) {
 func pInterface(s *SourceFile, ifc *mygi.InterfaceInfo, funcs []string) {
 	s.AddGoImport("unsafe")
 	name := ifc.Name()
-	s.GoBody.Pn("// interface %s", name)
+	s.GoBody.Pn("// Interface %s", name)
 
 	s.GoBody.Pn("type %s struct {", name)
 	s.GoBody.Pn("Ptr unsafe.Pointer")
@@ -129,7 +197,7 @@ func pInterface(s *SourceFile, ifc *mygi.InterfaceInfo, funcs []string) {
 
 func pMethod(s *SourceFile, method *mygi.FunctionInfo) {
 	spew.Dump(method)
-	s.GoBody.Pn("// wrap for %s", method.CIdentifier)
+	s.GoBody.Pn("// %s is a wrapper around %s().", method.Name(), method.CIdentifier)
 
 	instanceParam := method.Parameters.InstanceParameter
 	// instanceParam 必须不为空

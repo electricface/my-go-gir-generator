@@ -24,7 +24,7 @@ var returnValueDescMap = map[string]*ReturnValueDesc{
 	"C.gboolean": {
 		TypeForGo:     "bool",
 		TypeForC:      "C.gboolean",
-		ReturnExpr:    "mygiutil.Int2Bool(int($c))",
+		ReturnExpr:    "util.Int2Bool(int($c))/*go:.util*/",
 		ErrReturnExpr: "false",
 	},
 

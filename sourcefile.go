@@ -6,9 +6,11 @@ import (
 	"io"
 	"log"
 	"os"
+	"regexp"
 	"strings"
 
 	"mygi"
+	"path/filepath"
 )
 
 type SourceFile struct {
@@ -23,12 +25,16 @@ type SourceFile struct {
 }
 
 func NewSourceFile(pkg string) *SourceFile {
-	return &SourceFile{
+	sf := &SourceFile{
 		Pkg: pkg,
 
 		CBody:  &SourceBody{},
 		GoBody: &SourceBody{},
 	}
+
+	sf.CBody.sourceFile = sf
+	sf.GoBody.sourceFile = sf
+	return sf
 }
 
 func (v *SourceFile) Print() {
@@ -80,6 +86,20 @@ func (v *SourceFile) WriteTo(w io.Writer) {
 	w.Write(v.GoBody.buf.Bytes())
 }
 
+func (s *SourceFile) AddCPkg(pkg string) {
+	s.CPkgs = append(s.CPkgs, pkg)
+}
+
+func (s *SourceFile) AddCInclude(inc string) {
+	log.Println("SourceFile.AddCInclude:", inc)
+	for _, inc0 := range s.CIncludes {
+		if inc0 == inc {
+			return
+		}
+	}
+	s.CIncludes = append(s.CIncludes, inc)
+}
+
 // unsafe => "unsafe"
 // or x,github.com/path/ => x "path"
 func (s *SourceFile) AddGoImport(imp string) {
@@ -106,21 +126,51 @@ func (s *SourceFile) AddGirImport(ns string) {
 		panic("failed to get loaded repo " + ns)
 	}
 	base := strings.ToLower(repo.Namespace.Name) + "-" + repo.Namespace.Version
-	fullPath := "github.com/electricface/go-auto-gir/" + base
+	//fullPath := "github.com/electricface/go-auto-gir/" + base
+	fullPath := filepath.Join(getGirProjectRoot(), base)
 	s.AddGoImport(fullPath)
 }
 
 type SourceBody struct {
-	buf bytes.Buffer
+	sourceFile *SourceFile
+	buf        bytes.Buffer
+}
+
+// gir:glib -> project_root/glib-2.0
+// go:.util -> project_root/util
+// go:string -> string
+
+var requireReg = regexp.MustCompile(`/\*(\w+):(.+?)\*/`)
+
+func (v *SourceBody) writeStr(str string) {
+	subMatchResults := requireReg.FindAllStringSubmatch(str, -1)
+
+	for _, subMatchResult := range subMatchResults {
+		typ := subMatchResult[1]
+		arg := subMatchResult[2]
+
+		switch typ {
+		case "go":
+			if strings.HasPrefix(arg, ".") {
+				v.sourceFile.AddGoImport(filepath.Join(getGirProjectRoot(), arg[1:]))
+			} else {
+				v.sourceFile.AddGoImport(arg)
+			}
+
+		case "gir":
+			v.sourceFile.AddGirImport(arg)
+		}
+	}
+
+	v.buf.WriteString(str)
 }
 
 func (v *SourceBody) Pn(format string, a ...interface{}) {
-	str := fmt.Sprintf(format, a...)
-	v.buf.WriteString(str)
+	v.P(format, a...)
 	v.buf.WriteByte('\n')
 }
 
 func (v *SourceBody) P(format string, a ...interface{}) {
 	str := fmt.Sprintf(format, a...)
-	v.buf.WriteString(str)
+	v.writeStr(str)
 }

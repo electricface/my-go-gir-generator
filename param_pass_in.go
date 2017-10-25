@@ -140,6 +140,32 @@ func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 				ExprInCall: "$C($g)",
 			}
 
+		case *mygi.StructInfo:
+			cType, err := mygi.ParseCType(ty.CType)
+			if err != nil {
+				panic(err)
+			}
+
+			if cType.NumStar != 1 {
+				panic("assert failed cType.NumStr == 1")
+			}
+
+			var typeForGo string
+			var exprInCall string
+			if sameNs {
+				typeForGo = typeDef.Name()
+				exprInCall = "$g.native()"
+			} else {
+				typeForGo = strings.ToLower(ns) + "." + typeDef.Name()
+				exprInCall = "($C)($g.Ptr)"
+			}
+
+			return &GoParamPassInDesc{
+				TypeForGo:  typeForGo,
+				TypeForC:   cType.CgoNotation(),
+				ExprInCall: exprInCall,
+			}
+
 		case *mygi.InterfaceInfo:
 			cType, err := mygi.ParseCType(ty.CType)
 			if err != nil {
