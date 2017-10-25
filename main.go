@@ -1,13 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"mygi"
 )
 
@@ -203,7 +202,7 @@ func pInterface(s *SourceFile, ifc *mygi.InterfaceInfo, funcs []string) {
 }
 
 func pFunction(s *SourceFile, method *mygi.FunctionInfo) {
-	spew.Dump(method)
+	//spew.Dump(method)
 	s.GoBody.Pn("// %s is a wrapper around %s().", method.Name(), method.CIdentifier)
 
 	var receiver string
