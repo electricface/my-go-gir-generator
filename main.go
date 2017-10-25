@@ -122,7 +122,14 @@ func pStruct(s *SourceFile, struct0 *mygi.StructInfo, funcs []string) {
 	// methods
 	for _, method := range struct0.Methods {
 		if strSliceContains(funcs, method.CIdentifier) {
-			pMethod(s, method)
+			pFunction(s, method)
+		}
+	}
+
+	// constructors
+	for _, fn := range struct0.Constructors {
+		if strSliceContains(funcs, fn.CIdentifier) {
+			pFunction(s, fn)
 		}
 	}
 }
@@ -156,7 +163,7 @@ func pObject(s *SourceFile, class *mygi.ObjectInfo, funcs []string) {
 	// methods
 	for _, method := range class.Methods {
 		if strSliceContains(funcs, method.CIdentifier) {
-			pMethod(s, method)
+			pFunction(s, method)
 		}
 	}
 }
@@ -190,28 +197,32 @@ func pInterface(s *SourceFile, ifc *mygi.InterfaceInfo, funcs []string) {
 	// methods
 	for _, method := range ifc.Methods {
 		if strSliceContains(funcs, method.CIdentifier) {
-			pMethod(s, method)
+			pFunction(s, method)
 		}
 	}
 }
 
-func pMethod(s *SourceFile, method *mygi.FunctionInfo) {
+func pFunction(s *SourceFile, method *mygi.FunctionInfo) {
 	spew.Dump(method)
 	s.GoBody.Pn("// %s is a wrapper around %s().", method.Name(), method.CIdentifier)
 
-	instanceParam := method.Parameters.InstanceParameter
-	// instanceParam 必须不为空
-
-	instanceParamTpl := newParamPassInTemplate(instanceParam)
-	recv := instanceParamTpl.GetVarTypeForGo()
-
-	params := method.Parameters.Parameters
-	var paramTpls []*ParamPassInTemplate
+	var receiver string
 	var args []string
-	for _, param := range params {
-		paramTpl := newParamPassInTemplate(param)
-		paramTpls = append(paramTpls, paramTpl)
-		args = append(args, paramTpl.GetVarTypeForGo())
+	var instanceParamTpl *ParamPassInTemplate
+	var paramTpls []*ParamPassInTemplate
+
+	if method.Parameters != nil {
+		instanceParam := method.Parameters.InstanceParameter
+		if instanceParam != nil {
+			instanceParamTpl = newParamPassInTemplate(instanceParam)
+			receiver = "(" + instanceParamTpl.GetVarTypeForGo() + ")"
+		}
+
+		for _, param := range method.Parameters.Parameters {
+			tpl := newParamPassInTemplate(param)
+			paramTpls = append(paramTpls, tpl)
+			args = append(args, tpl.GetVarTypeForGo())
+		}
 	}
 
 	argsJoined := strings.Join(args, ", ")
@@ -230,10 +241,14 @@ func pMethod(s *SourceFile, method *mygi.FunctionInfo) {
 	if strings.Contains(retTypesJoined, ",") {
 		retTypesJoined = "(" + retTypesJoined + ")"
 	}
-	s.GoBody.Pn("func (%s) %s (%s) %s {", recv, method.Name(), argsJoined, retTypesJoined)
+	s.GoBody.Pn("func %s %s (%s) %s {", receiver, method.Name(), argsJoined, retTypesJoined)
 
 	// start func body
-	instanceParamTpl.WriteDeclaration(s)
+	var exprsInCall []string
+	if instanceParamTpl != nil {
+		instanceParamTpl.WriteDeclaration(s)
+		exprsInCall = append(exprsInCall, instanceParamTpl.GetExprInCall())
+	}
 
 	for _, paramTpl := range paramTpls {
 		paramTpl.WriteDeclaration(s)
@@ -244,8 +259,6 @@ func pMethod(s *SourceFile, method *mygi.FunctionInfo) {
 		s.GoBody.Pn("var err glib.Error")
 	}
 
-	var exprsInCall []string
-	exprsInCall = append(exprsInCall, instanceParamTpl.GetExprInCall())
 	for _, paramTpl := range paramTpls {
 		exprsInCall = append(exprsInCall, paramTpl.GetExprInCall())
 	}
