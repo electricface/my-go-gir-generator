@@ -89,14 +89,25 @@ func getReturnValueDesc(ty *mygi.Type) *ReturnValueDesc {
 				panic(err)
 			}
 
-			if cType.NumStar != 1 {
-				panic("assert failed cType.NumStr == 1")
+			var isGPointer bool
+			if cType.CgoNotation() == "C.gpointer" {
+				isGPointer = true
 			}
+
+			if cType.NumStar != 1 && !isGPointer {
+				panic("assert failed cType.NumStr == 1, ctype is " + ty.CType)
+			}
+
 			var typeForGo string
 			var retExpr string
 			if sameNs {
 				typeForGo = typeDef.Name()
-				retExpr = "wrap" + typeForGo + "($c)"
+				if isGPointer {
+					retExpr = "Wrap" + typeForGo + "(unsafe.Pointer($c))"
+				} else {
+					retExpr = "wrap" + typeForGo + "($c)"
+				}
+
 			} else {
 				typeForGo = ns + "." + typeDef.Name()
 				retExpr = ns + ".Wrap" + typeDef.Name() + "(unsafe.Pointer($c))" +

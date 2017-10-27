@@ -256,8 +256,13 @@ func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 				panic(err)
 			}
 
-			if cType.NumStar != 1 {
-				panic("assert failed cType.NumStr == 1")
+			var isGPointer bool
+			if cType.CgoNotation() == "C.gpointer" {
+				isGPointer = true
+			}
+
+			if cType.NumStar != 1 && !isGPointer {
+				panic("assert failed cType.NumStr == 1, ctype is " + ty.CType)
 			}
 
 			var typeForGo string
@@ -270,6 +275,9 @@ func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 				// 不能使用 native 方法了
 				// 比如 (*C.GFile)(file.Ptr)
 				exprInCall = "($C)($g.Ptr)"
+			}
+			if isGPointer {
+				exprInCall = fmt.Sprintf("C.gpointer(%s)", exprInCall)
 			}
 
 			return &GoParamPassInDesc{

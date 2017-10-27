@@ -209,6 +209,12 @@ func pInterface(s *SourceFile, ifc *mygi.InterfaceInfo, funcs []string) {
 }
 
 func pFunction(s *SourceFile, method *mygi.FunctionInfo) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Println("pFunction", method.CIdentifier)
+			panic(err)
+		}
+	}()
 	//spew.Dump(method)
 	s.GoBody.Pn("// %s is a wrapper around %s().", method.Name(), method.CIdentifier)
 
