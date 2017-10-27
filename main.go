@@ -80,7 +80,7 @@ func main() {
 			sourceFile.AddCInclude("<" + cInc.Name + ">")
 		}
 
-		outFile := filepath.Join(dir, genFileCfg.Filename+"_auto.go")
+		outFile := filepath.Join(dir, getOutputFileBaseName(genFileCfg))
 		log.Println("outFile:", outFile)
 		sourceFile.Save(outFile)
 	}
@@ -90,6 +90,16 @@ func main() {
 	//for name, type0 := range types {
 	//	log.Printf("%s -> %T\n", name, type0)
 	//}
+}
+
+func getOutputFileBaseName(cfg *GenFileConfig) string {
+	var name string
+	if cfg.Filename != "" {
+		name = cfg.Filename
+	} else {
+		name = camel2Snake(cfg.Type)
+	}
+	return name + "_auto.go"
 }
 
 func pStruct(s *SourceFile, struct0 *mygi.StructInfo, funcs []string) {
