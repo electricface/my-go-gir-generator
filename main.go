@@ -118,6 +118,13 @@ func pStruct(s *SourceFile, struct0 *mygi.StructInfo, funcs []string) {
 	s.GoBody.Pn("return %s{p}", name)
 	s.GoBody.Pn("}")
 
+	// constructors
+	for _, fn := range struct0.Constructors {
+		if strSliceContains(funcs, fn.CIdentifier) {
+			pFunction(s, fn)
+		}
+	}
+
 	// methods
 	for _, method := range struct0.Methods {
 		if strSliceContains(funcs, method.CIdentifier) {
@@ -125,8 +132,8 @@ func pStruct(s *SourceFile, struct0 *mygi.StructInfo, funcs []string) {
 		}
 	}
 
-	// constructors
-	for _, fn := range struct0.Constructors {
+	// functions
+	for _, fn := range struct0.Functions {
 		if strSliceContains(funcs, fn.CIdentifier) {
 			pFunction(s, fn)
 		}

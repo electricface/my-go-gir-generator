@@ -36,6 +36,13 @@ var returnValueDescMap = map[string]*ReturnValueDesc{
 		ErrReturnExpr: "0.0",
 	},
 
+	"C.gpointer": {
+		TypeForGo:     "unsafe.Pointer",
+		TypeForC:      "C.gpointer",
+		ReturnExpr:    "unsafe.Pointer($c)",
+		ErrReturnExpr: "unsafe.Pointer(nil)",
+	},
+
 	// record in other package
 	//"*C.GVariant": {
 	//	TypeForGo:     "glib.Variant",

@@ -44,6 +44,38 @@ var goParamPassInDescMap = map[string]*GoParamPassInDesc{
 		ExprInCall:   "$C(util.Bool2Int($g)) /*go:.util*/",
 	},
 
+	"C.gdouble": {
+		TypeForGo:    "float64",
+		TypeForC:     "C.gdouble",
+		ConvertExpr:  "",
+		ConvertClean: "",
+		ExprInCall:   "$C($g)",
+	},
+
+	"C.gfloat": {
+		TypeForGo:    "float32",
+		TypeForC:     "C.gfloat",
+		ConvertExpr:  "",
+		ConvertClean: "",
+		ExprInCall:   "$C($g)",
+	},
+
+	"C.gpointer": {
+		TypeForGo:    "unsafe.Pointer",
+		TypeForC:     "C.gpointer",
+		ConvertExpr:  "",
+		ConvertClean: "",
+		ExprInCall:   "$C($g)",
+	},
+
+	"C.guchar": {
+		TypeForGo:    "byte",
+		TypeForC:     "C.guchar",
+		ConvertExpr:  "",
+		ConvertClean: "",
+		ExprInCall:   "$C($g)",
+	},
+
 	// string
 	"*C.char": {
 		TypeForGo:    "string",
