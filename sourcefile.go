@@ -128,7 +128,7 @@ func (s *SourceFile) AddGoImport(imp string) {
 func (s *SourceFile) AddGirImport(ns string) {
 	repo := mygi.GetLoadedRepo(ns)
 	if repo == nil {
-		log.Fatal("failed to get loaded repo ", ns)
+		panic("failed to get loaded repo " + ns)
 	}
 	base := strings.ToLower(repo.Namespace.Name) + "-" + repo.Namespace.Version
 	fullPath := filepath.Join(getGirProjectRoot(), base)

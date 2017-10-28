@@ -150,16 +150,32 @@ func pStruct(s *SourceFile, struct0 *mygi.StructInfo, funcs []string) {
 	}
 }
 
-func pObject(s *SourceFile, class *mygi.ObjectInfo, funcs []string) {
+func pObject(s *SourceFile, object *mygi.ObjectInfo, funcs []string) {
 	s.AddGoImport("unsafe")
-	name := class.Name()
+	name := object.Name()
 	s.GoBody.Pn("// Object %s", name)
 
+	parent, parentNS := repo.GetType(object.Parent)
+	if parent == nil {
+		panic("fail to get type " + object.Parent)
+	}
+
+	var sameNS bool
+	if parentNS == repo.Namespace.Name {
+		sameNS = true
+	}
+	parentNS = strings.ToLower(parentNS)
+
 	s.GoBody.Pn("type %s struct {", name)
-	s.GoBody.Pn("Ptr unsafe.Pointer")
+	if sameNS {
+		s.GoBody.Pn("%s", parent.Name())
+	} else {
+		s.AddGirImport(parentNS)
+		s.GoBody.Pn("%s.%s", parentNS, parent.Name())
+	}
 	s.GoBody.Pn("}")
 
-	cPtrType := "*C." + class.CTypeAttr
+	cPtrType := "*C." + object.CTypeAttr
 
 	// method native
 	s.GoBody.Pn("func (v %s) native() %s {", name, cPtrType)
@@ -167,19 +183,35 @@ func pObject(s *SourceFile, class *mygi.ObjectInfo, funcs []string) {
 	s.GoBody.Pn("}")
 
 	// method wrapXXX
-	s.GoBody.Pn("func wrap%s(p %s) %s {", name, cPtrType, name)
-	s.GoBody.Pn("return %s{unsafe.Pointer(p)}", name)
+	s.GoBody.Pn("func wrap%s(p %s) (v %s) {", name, cPtrType, name)
+	s.GoBody.Pn("v.Ptr = unsafe.Pointer(p)")
+	s.GoBody.Pn("return")
 	s.GoBody.Pn("}")
 
 	// method WrapXXX
-	s.GoBody.Pn("func Wrap%s(p unsafe.Pointer) %s {", name, name)
-	s.GoBody.Pn("return %s{p}", name)
+	s.GoBody.Pn("func Wrap%s(p unsafe.Pointer) (v %s) {", name, name)
+	s.GoBody.Pn("v.Ptr = p")
+	s.GoBody.Pn("return")
 	s.GoBody.Pn("}")
 
+	// constructors
+	for _, fn := range object.Constructors {
+		if strSliceContains(funcs, fn.CIdentifier) {
+			pFunction(s, fn)
+		}
+	}
+
 	// methods
-	for _, method := range class.Methods {
+	for _, method := range object.Methods {
 		if strSliceContains(funcs, method.CIdentifier) {
 			pFunction(s, method)
+		}
+	}
+
+	// functions
+	for _, fn := range object.Functions {
+		if strSliceContains(funcs, fn.CIdentifier) {
+			pFunction(s, fn)
 		}
 	}
 }
