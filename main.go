@@ -85,6 +85,26 @@ func main() {
 		sourceFile.Save(outFile)
 	}
 
+	pkg := strings.ToLower(cfg.Namespace)
+	sourceFile := NewSourceFile(pkg)
+	// cgo pkg-config
+	for _, pkg := range repo.Packages {
+		sourceFile.AddCPkg(pkg.Name)
+	}
+
+	// c header files
+	for _, cInc := range repo.CIncludes() {
+		sourceFile.AddCInclude("<" + cInc.Name + ">")
+	}
+	for _, fn := range repo.Namespace.Functions {
+		if strSliceContains(cfg.Funcs, fn.CIdentifier) {
+			pFunction(sourceFile, fn)
+		}
+	}
+	outFile := filepath.Join(dir, pkg+"_auto.go")
+	log.Println("outFile:", outFile)
+	sourceFile.Save(outFile)
+
 	//repo.GetType()
 	//
 	//for name, type0 := range types {

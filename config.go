@@ -6,15 +6,16 @@ import (
 )
 
 type Config struct {
-	Namespace string `toml:"namespace"`
-	Version   string `toml:"version"`
+	Namespace string           `toml:"namespace"`
+	Version   string           `toml:"version"`
 	GenFiles  []*GenFileConfig `toml:"gen_files"`
+	Funcs     []string         `toml:"funcs"`
 }
 
 type GenFileConfig struct {
-	Type string
-	Filename string
-	Funcs []string
+	Type     string   `toml:"type"`
+	Filename string   `toml:"filename"`
+	Funcs    []string `toml:"funcs"`
 }
 
 func LoadConfig(filename string) (*Config, error) {
