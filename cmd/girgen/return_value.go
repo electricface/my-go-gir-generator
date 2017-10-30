@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"mygi"
 	"strings"
+
+	"github.com/electricface/my-go-gir-generator/gi"
 )
 
 var returnValueDescMap = map[string]*ReturnValueDesc{
@@ -61,7 +62,7 @@ var returnValueDescMap = map[string]*ReturnValueDesc{
 }
 
 type ReturnValueTemplate struct {
-	param *mygi.Parameter
+	param *gi.Parameter
 	desc  *ReturnValueDesc
 }
 
@@ -74,7 +75,7 @@ type ReturnValueDesc struct {
 	Clean         string
 }
 
-func getReturnValueDesc(ty *mygi.Type) *ReturnValueDesc {
+func getReturnValueDesc(ty *gi.Type) *ReturnValueDesc {
 	// TODO
 	typeDef, ns := repo.GetType(ty.Name)
 	sameNs := isSameNamespace(ns)
@@ -82,9 +83,9 @@ func getReturnValueDesc(ty *mygi.Type) *ReturnValueDesc {
 
 	if typeDef != nil {
 		switch typeDef0 := typeDef.(type) {
-		case *mygi.ObjectInfo:
+		case *gi.ObjectInfo:
 			_ = typeDef0
-			cType, err := mygi.ParseCType(ty.CType)
+			cType, err := gi.ParseCType(ty.CType)
 			if err != nil {
 				panic(err)
 			}
@@ -122,8 +123,8 @@ func getReturnValueDesc(ty *mygi.Type) *ReturnValueDesc {
 				ErrReturnExpr: typeForGo + "{}",
 			}
 
-		case *mygi.StructInfo:
-			cType, err := mygi.ParseCType(ty.CType)
+		case *gi.StructInfo:
+			cType, err := gi.ParseCType(ty.CType)
 			if err != nil {
 				panic(err)
 			}
@@ -150,8 +151,8 @@ func getReturnValueDesc(ty *mygi.Type) *ReturnValueDesc {
 				ErrReturnExpr: typeForGo + "{}",
 			}
 
-		case *mygi.InterfaceInfo:
-			cType, err := mygi.ParseCType(ty.CType)
+		case *gi.InterfaceInfo:
+			cType, err := gi.ParseCType(ty.CType)
 			if err != nil {
 				panic(err)
 			}
@@ -180,7 +181,7 @@ func getReturnValueDesc(ty *mygi.Type) *ReturnValueDesc {
 		}
 	}
 
-	cType, err := mygi.ParseCType(ty.CType)
+	cType, err := gi.ParseCType(ty.CType)
 	if err != nil {
 		panic(err)
 	}
@@ -218,7 +219,7 @@ func getReturnValueDescForIntegerType(cgoType string) *ReturnValueDesc {
 	}
 }
 
-func newReturnValueTemplate(param *mygi.Parameter) *ReturnValueTemplate {
+func newReturnValueTemplate(param *gi.Parameter) *ReturnValueTemplate {
 	desc := getReturnValueDesc(param.Type)
 	if desc == nil {
 		panic("fail to get returnValueDesc for " + param.Type.CType)

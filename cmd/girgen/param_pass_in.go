@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"mygi"
 	"strings"
+
+	"github.com/electricface/my-go-gir-generator/gi"
 )
 
 var goParamPassInDescMap = map[string]*GoParamPassInDesc{
@@ -104,7 +105,7 @@ type GoParamPassInDesc struct {
 }
 
 type ParamPassInTemplate struct {
-	param *mygi.Parameter
+	param *gi.Parameter
 	desc  *GoParamPassInDesc
 }
 
@@ -172,7 +173,7 @@ func getGoParamPassInDescForIntegerType(cgoType string) *GoParamPassInDesc {
 	}
 }
 
-func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
+func getGoParamPassInDesc(ty *gi.Type) *GoParamPassInDesc {
 	// TODO
 	typeDef, ns := repo.GetType(ty.Name)
 	sameNs := isSameNamespace(ns)
@@ -181,7 +182,7 @@ func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 	//}
 	if typeDef != nil {
 		switch typeDef0 := typeDef.(type) {
-		case *mygi.EnumInfo:
+		case *gi.EnumInfo:
 			_ = typeDef0
 			var typeForGo string
 			if sameNs {
@@ -196,8 +197,8 @@ func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 				ExprInCall: "$C($g)",
 			}
 
-		case *mygi.StructInfo:
-			cType, err := mygi.ParseCType(ty.CType)
+		case *gi.StructInfo:
+			cType, err := gi.ParseCType(ty.CType)
 			if err != nil {
 				panic(err)
 			}
@@ -222,8 +223,8 @@ func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 				ExprInCall: exprInCall,
 			}
 
-		case *mygi.InterfaceInfo:
-			cType, err := mygi.ParseCType(ty.CType)
+		case *gi.InterfaceInfo:
+			cType, err := gi.ParseCType(ty.CType)
 			if err != nil {
 				panic(err)
 			}
@@ -250,8 +251,8 @@ func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 				ExprInCall: exprInCall,
 			}
 
-		case *mygi.ObjectInfo:
-			cType, err := mygi.ParseCType(ty.CType)
+		case *gi.ObjectInfo:
+			cType, err := gi.ParseCType(ty.CType)
 			if err != nil {
 				panic(err)
 			}
@@ -288,7 +289,7 @@ func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 		}
 	}
 
-	cType, err := mygi.ParseCType(ty.CType)
+	cType, err := gi.ParseCType(ty.CType)
 	if err != nil {
 		panic(err)
 	}
@@ -302,7 +303,7 @@ func getGoParamPassInDesc(ty *mygi.Type) *GoParamPassInDesc {
 	return goParamPassInDescMap[typeForC]
 }
 
-func newParamPassInTemplate(param *mygi.Parameter) *ParamPassInTemplate {
+func newParamPassInTemplate(param *gi.Parameter) *ParamPassInTemplate {
 	passInDesc := getGoParamPassInDesc(param.Type)
 	if passInDesc == nil {
 		panic("fail to get passInDesc for " + param.Type.CType)

@@ -11,7 +11,7 @@ import (
 	"regexp"
 	"strings"
 
-	"mygi"
+	"github.com/electricface/my-go-gir-generator/gi"
 )
 
 type SourceFile struct {
@@ -126,7 +126,7 @@ func (s *SourceFile) AddGoImport(imp string) {
 }
 
 func (s *SourceFile) AddGirImport(ns string) {
-	repo := mygi.GetLoadedRepo(ns)
+	repo := gi.GetLoadedRepo(ns)
 	if repo == nil {
 		panic("failed to get loaded repo " + ns)
 	}

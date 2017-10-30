@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"mygi"
+	"github.com/electricface/my-go-gir-generator/gi"
 )
 
-var repo *mygi.Repository
+var repo *gi.Repository
 var girProjectRoot string
 
 func getGirProjectRoot() string {
@@ -41,7 +41,7 @@ func main() {
 
 	setGirProjectRoot(strings.TrimPrefix(filepath.Dir(dir), goSrcPrefix))
 
-	repo, err = mygi.Load(cfg.Namespace, cfg.Version)
+	repo, err = gi.Load(cfg.Namespace, cfg.Version)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -62,11 +62,11 @@ func main() {
 		sourceFile := NewSourceFile(pkg)
 
 		switch td := typeDef.(type) {
-		case *mygi.StructInfo:
+		case *gi.StructInfo:
 			pStruct(sourceFile, td, genFileCfg.Funcs)
-		case *mygi.InterfaceInfo:
+		case *gi.InterfaceInfo:
 			pInterface(sourceFile, td, genFileCfg.Funcs)
-		case *mygi.ObjectInfo:
+		case *gi.ObjectInfo:
 			pObject(sourceFile, td, genFileCfg.Funcs)
 		}
 
@@ -122,7 +122,7 @@ func getOutputFileBaseName(cfg *GenFileConfig) string {
 	return name + "_auto.go"
 }
 
-func pStruct(s *SourceFile, struct0 *mygi.StructInfo, funcs []string) {
+func pStruct(s *SourceFile, struct0 *gi.StructInfo, funcs []string) {
 	s.AddGoImport("unsafe")
 	name := struct0.Name()
 	s.GoBody.Pn("// Struct %s", name)
@@ -170,7 +170,7 @@ func pStruct(s *SourceFile, struct0 *mygi.StructInfo, funcs []string) {
 	}
 }
 
-func pObject(s *SourceFile, object *mygi.ObjectInfo, funcs []string) {
+func pObject(s *SourceFile, object *gi.ObjectInfo, funcs []string) {
 	s.AddGoImport("unsafe")
 	name := object.Name()
 	s.GoBody.Pn("// Object %s", name)
@@ -236,7 +236,7 @@ func pObject(s *SourceFile, object *mygi.ObjectInfo, funcs []string) {
 	}
 }
 
-func pInterface(s *SourceFile, ifc *mygi.InterfaceInfo, funcs []string) {
+func pInterface(s *SourceFile, ifc *gi.InterfaceInfo, funcs []string) {
 	s.AddGoImport("unsafe")
 	name := ifc.Name()
 	s.GoBody.Pn("// Interface %s", name)
@@ -270,7 +270,7 @@ func pInterface(s *SourceFile, ifc *mygi.InterfaceInfo, funcs []string) {
 	}
 }
 
-func pFunction(s *SourceFile, method *mygi.FunctionInfo) {
+func pFunction(s *SourceFile, method *gi.FunctionInfo) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Println("pFunction", method.CIdentifier)

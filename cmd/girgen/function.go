@@ -2,7 +2,7 @@ package main
 
 import (
 //"fmt"
-//"mygi"
+//"github.com/electricface/my-go-gir-generator/gi"
 //"strings"
 //"./typeconverter"
 )
@@ -15,7 +15,7 @@ var goKeywords = []string{
 	"continue", "for", "import", "return", "var",
 }
 
-//func getParamName(p *mygi.Parameter) string {
+//func getParamName(p *gi.Parameter) string {
 //    name := strings.TrimPrefix(p.Name, "@")
 //    if strSliceContains(goKeywords, name) {
 //        return strings.ToUpper(name)
@@ -23,37 +23,37 @@ var goKeywords = []string{
 //    return name
 //}
 //
-//func getParamGoType(p *mygi.Parameter, paramCvtMap map[string]*typeconverter.TypeConverter) string {
+//func getParamGoType(p *gi.Parameter, paramCvtMap map[string]*typeconverter.TypeConverter) string {
 //    cvt := paramCvtMap[p.Name]
 //    return cvt.GoType
 //}
 //
-//func getParamCParamName(p *mygi.Parameter) string {
+//func getParamCParamName(p *gi.Parameter) string {
 //    return "C_" + getParamName(p)
 //}
 //
-//func getParamCParamCgoType(p *mygi.Parameter, paramCvtMap map[string]*typeconverter.TypeConverter) string {
+//func getParamCParamCgoType(p *gi.Parameter, paramCvtMap map[string]*typeconverter.TypeConverter) string {
 //    cvt := paramCvtMap[p.Name]
 //    return cvt.CgoType
 //}
 //
-//func getParamInCCall(p *mygi.Parameter) string {
+//func getParamInCCall(p *gi.Parameter) string {
 //    if p.Direction == "out" {
 //        return "&C_" + getParamName(p)
 //    }
 //    return "C_" + getParamName(p)
 //}
 //
-//func getParamReturnName(p *mygi.Parameter) string {
+//func getParamReturnName(p *gi.Parameter) string {
 //    return "R_" + getParamName(p)
 //}
 //
-//func newErrorParameter() *mygi.Parameter {
-//    return &mygi.Parameter{
+//func newErrorParameter() *gi.Parameter {
+//    return &gi.Parameter{
 //        Name: "err",
 //        TransferOwnership: "all",
 //        Direction: "out",
-//        Type: mygi.Type{
+//        Type: gi.Type{
 //            Name: "GError",
 //            CType: "GError**",
 //        },
@@ -61,7 +61,7 @@ var goKeywords = []string{
 //}
 //
 //
-//func printFunction(f *mygi.Function, funcName string) {
+//func printFunction(f *gi.Function, funcName string) {
 //    if !f.Introspectable {
 //        fmt.Println("// not introspectable")
 //        return
@@ -75,7 +75,7 @@ var goKeywords = []string{
 //    paramCvtMap := make(map[string]*typeconverter.TypeConverter)
 //
 //    fparams := f.Parameters
-//    var params []*mygi.Parameter
+//    var params []*gi.Parameter
 //    instanceParam := fparams.InstanceParameter
 //    if !instanceParam.IsZero() {
 //        instanceParam.Name = "@this"
@@ -116,7 +116,7 @@ var goKeywords = []string{
 //    }
 //
 //    // c call args
-//    var cArgs []*mygi.Parameter
+//    var cArgs []*gi.Parameter
 //    for _, p := range params {
 //        if p.Name != "@ret" {
 //            cArgs = append(cArgs, p)
@@ -127,7 +127,7 @@ var goKeywords = []string{
 //    // arg in
 //    // may has @this
 //    // no @ret
-//    var cParamsFromGo []*mygi.Parameter
+//    var cParamsFromGo []*gi.Parameter
 //    for _, p := range params {
 //        if (p.Direction == "" || p.Direction == "in"  || p.Direction == "inout") &&
 //            p.Name != "@ret" {
@@ -138,7 +138,7 @@ var goKeywords = []string{
 //
 //    // arg out
 //    // has @ret
-//    var cParamsToGo []*mygi.Parameter
+//    var cParamsToGo []*gi.Parameter
 //    for _, p := range params {
 //        if (p.Direction == "out" || p.Direction == "inout") ||
 //            p.Name == "@ret" {
@@ -147,7 +147,7 @@ var goKeywords = []string{
 //    }
 //    printParamters("cParamsToGo / goReturns", cParamsToGo)
 //
-//    var goArgs []*mygi.Parameter
+//    var goArgs []*gi.Parameter
 //    for _, p := range cParamsFromGo {
 //        if p.LengthForParameter == nil {
 //            goArgs = append(goArgs, p)
@@ -169,7 +169,7 @@ var goKeywords = []string{
 //}
 //
 //// for debug
-//func printParamters(name string, params []*mygi.Parameter) {
+//func printParamters(name string, params []*gi.Parameter) {
 //    return
 //    fmt.Println("// -> params", name)
 //    for _,p := range params {
@@ -177,8 +177,8 @@ var goKeywords = []string{
 //    }
 //}
 //
-//func pFunctionHeader(name string, goArgs []*mygi.Parameter,
-//    goReturns []*mygi.Parameter, paramCvtMap map[string]*typeconverter.TypeConverter) {
+//func pFunctionHeader(name string, goArgs []*gi.Parameter,
+//    goReturns []*gi.Parameter, paramCvtMap map[string]*typeconverter.TypeConverter) {
 //
 //    fmt.Printf("func ")
 //    if len(goArgs) > 0 {
@@ -208,14 +208,14 @@ var goKeywords = []string{
 //    fmt.Printf("%s {\n", ret)
 //}
 //
-//func pCArgDeclarations(cArgs []*mygi.Parameter, paramCvtMap map[string]*typeconverter.TypeConverter) {
+//func pCArgDeclarations(cArgs []*gi.Parameter, paramCvtMap map[string]*typeconverter.TypeConverter) {
 //    for _, param := range cArgs {
 //        fmt.Printf("\tvar %s %s\n", getParamCParamName(param), getParamCParamCgoType(param, paramCvtMap) )
 //    }
 //}
 //
 //// go -> cgo
-//func pCParamsFromGoConversions(cParamsFromGo []*mygi.Parameter,
+//func pCParamsFromGoConversions(cParamsFromGo []*gi.Parameter,
 //    paramCvtMap map[string]*typeconverter.TypeConverter) {
 //
 //    for _, param := range cParamsFromGo {
@@ -226,7 +226,7 @@ var goKeywords = []string{
 //}
 //
 //// cgo -> go
-//func pCParamsToGoConversions(cParamsToGo []*mygi.Parameter,
+//func pCParamsToGoConversions(cParamsToGo []*gi.Parameter,
 //    paramCvtMap map[string]*typeconverter.TypeConverter) {
 //    for _, param := range cParamsToGo {
 //        cvt := paramCvtMap[param.Name]
@@ -235,14 +235,14 @@ var goKeywords = []string{
 //    }
 //}
 //
-//func pReturnDeclarations(goReturns []*mygi.Parameter,
+//func pReturnDeclarations(goReturns []*gi.Parameter,
 //    paramCvtMap map[string]*typeconverter.TypeConverter) {
 //    for _, param := range goReturns {
 //        fmt.Printf("\tvar %s %s\n", getParamReturnName(param), getParamGoType(param, paramCvtMap) )
 //    }
 //}
 //
-//func pCCall(name string, retVal *mygi.Parameter, cArgs []*mygi.Parameter) {
+//func pCCall(name string, retVal *gi.Parameter, cArgs []*gi.Parameter) {
 //    if retVal.Type.Name != "none" {
 //        fmt.Printf("\t%s := ", getParamInCCall(retVal))
 //    } else {
@@ -255,7 +255,7 @@ var goKeywords = []string{
 //    fmt.Printf("C.%s(%s)\n", name, strings.Join(cCallArgs, ", "))
 //}
 //
-//func pFunctionReturn(goReturns []*mygi.Parameter) {
+//func pFunctionReturn(goReturns []*gi.Parameter) {
 //    fmt.Printf("\treturn")
 //    if len(goReturns) == 0 {
 //        fmt.Println()
@@ -268,17 +268,17 @@ var goKeywords = []string{
 //    fmt.Printf(" %s\n", strings.Join(rets, ", ") )
 //}
 //
-//func pMethod(f *mygi.Function) {
+//func pMethod(f *gi.Function) {
 //    fmt.Println("// method", f.CIdentifier)
 //    printFunction(f, f.Name())
 //}
 //
-//func pFunction(f *mygi.Function) {
+//func pFunction(f *gi.Function) {
 //    fmt.Println("// function", f.CIdentifier)
 //    printFunction(f, f.Name())
 //}
 //
-//func pConstructor(f *mygi.Function, className string) {
+//func pConstructor(f *gi.Function, className string) {
 //    fmt.Println("// constructor", f.CIdentifier)
 //    newName := strings.Replace( f.Name(),"New", "New" + className , 1)
 //    // New -> NewAppInfo
