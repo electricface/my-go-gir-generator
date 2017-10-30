@@ -1,18 +1,18 @@
 package main
 
 import (
-    //"fmt"
-    //"mygi"
-    //"strings"
-    //"./typeconverter"
+//"fmt"
+//"mygi"
+//"strings"
+//"./typeconverter"
 )
 
 var goKeywords = []string{
-    "break", "default", "func", "interface", "select",
-    "case", "defer", "go", "map", "struct",
-    "chan", "else", "goto", "package", "switch",
-    "const", "fallthrough", "if", "range", "type",
-    "continue", "for", "import", "return", "var",
+	"break", "default", "func", "interface", "select",
+	"case", "defer", "go", "map", "struct",
+	"chan", "else", "goto", "package", "switch",
+	"const", "fallthrough", "if", "range", "type",
+	"continue", "for", "import", "return", "var",
 }
 
 //func getParamName(p *mygi.Parameter) string {
@@ -285,4 +285,3 @@ var goKeywords = []string{
 //    // NewFromFilename -> NewAppInfoFromFilename
 //    printFunction(f, newName)
 //}
-
