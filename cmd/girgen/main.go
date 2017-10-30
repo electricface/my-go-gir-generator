@@ -48,6 +48,8 @@ func main() {
 
 	types := repo.GetTypes()
 	log.Print(len(types))
+	pkg := strings.ToLower(repo.Namespace.Name)
+	sourceFile := getSourceFile(repo, pkg)
 
 	for _, genFileCfg := range cfg.GenFiles {
 		typeDef, ns := repo.GetType(genFileCfg.Type)
@@ -58,9 +60,6 @@ func main() {
 			panic("assert failed ns == cfg.Namespace")
 		}
 
-		pkg := strings.ToLower(cfg.Namespace)
-		sourceFile := NewSourceFile(pkg)
-
 		switch td := typeDef.(type) {
 		case *gi.StructInfo:
 			pStruct(sourceFile, td, genFileCfg.Funcs)
@@ -69,33 +68,8 @@ func main() {
 		case *gi.ObjectInfo:
 			pObject(sourceFile, td, genFileCfg.Funcs)
 		}
-
-		// cgo pkg-config
-		for _, pkg := range repo.Packages {
-			sourceFile.AddCPkg(pkg.Name)
-		}
-
-		// c header files
-		for _, cInc := range repo.CIncludes() {
-			sourceFile.AddCInclude("<" + cInc.Name + ">")
-		}
-
-		outFile := filepath.Join(dir, getOutputFileBaseName(genFileCfg))
-		log.Println("outFile:", outFile)
-		sourceFile.Save(outFile)
 	}
 
-	pkg := strings.ToLower(cfg.Namespace)
-	sourceFile := NewSourceFile(pkg)
-	// cgo pkg-config
-	for _, pkg := range repo.Packages {
-		sourceFile.AddCPkg(pkg.Name)
-	}
-
-	// c header files
-	for _, cInc := range repo.CIncludes() {
-		sourceFile.AddCInclude("<" + cInc.Name + ">")
-	}
 	for _, fn := range repo.Namespace.Functions {
 		if strSliceContains(cfg.Funcs, fn.CIdentifier) {
 			pFunction(sourceFile, fn)
@@ -110,6 +84,21 @@ func main() {
 	//for name, type0 := range types {
 	//	log.Printf("%s -> %T\n", name, type0)
 	//}
+}
+
+func getSourceFile(repo *gi.Repository, pkg string) *SourceFile {
+	sourceFile := NewSourceFile(pkg)
+
+	// cgo pkg-config
+	for _, pkg := range repo.Packages {
+		sourceFile.AddCPkg(pkg.Name)
+	}
+
+	// c header files
+	for _, cInc := range repo.CIncludes() {
+		sourceFile.AddCInclude("<" + cInc.Name + ">")
+	}
+	return sourceFile
 }
 
 func getOutputFileBaseName(cfg *GenFileConfig) string {
