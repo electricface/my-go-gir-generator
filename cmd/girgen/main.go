@@ -75,6 +75,15 @@ func main() {
 			pFunction(sourceFile, fn)
 		}
 	}
+
+	// enums
+	for _, enum := range repo.Namespace.Enums {
+		pEnum(sourceFile, enum)
+	}
+	for _, enum := range repo.Namespace.Bitfields {
+		pEnum(sourceFile, enum)
+	}
+
 	outFile := filepath.Join(dir, pkg+"_auto.go")
 	log.Println("outFile:", outFile)
 	sourceFile.Save(outFile)
@@ -109,6 +118,21 @@ func getOutputFileBaseName(cfg *GenFileConfig) string {
 		name = camel2Snake(cfg.Type)
 	}
 	return name + "_auto.go"
+}
+
+func pEnum(s *SourceFile, enum *gi.EnumInfo) {
+	name := enum.Name()
+	s.GoBody.Pn("type %s %s", name, enum.CType().CgoNotation())
+	s.GoBody.Pn("const (")
+	for i, member := range enum.Members {
+		memberName := name + snake2Camel(member.Name)
+		if i == 0 {
+			s.GoBody.Pn("%s %s = %s", memberName, name, member.Value)
+		} else {
+			s.GoBody.Pn("%s = %s", memberName, member.Value)
+		}
+	}
+	s.GoBody.Pn(")") // end const
 }
 
 func pStruct(s *SourceFile, struct0 *gi.StructInfo, funcs []string) {
