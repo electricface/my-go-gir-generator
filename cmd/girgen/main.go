@@ -125,6 +125,12 @@ func getOutputFileBaseName(cfg *GenFileConfig) string {
 func pStruct(s *SourceFile, struct0 *gi.StructInfo, funcs []string) {
 	s.AddGoImport("unsafe")
 	name := struct0.Name()
+	defer func() {
+		if err := recover(); err != nil {
+			log.Println("pStruct", name)
+			panic(err)
+		}
+	}()
 	s.GoBody.Pn("// Struct %s", name)
 
 	s.GoBody.Pn("type %s struct {", name)
@@ -173,27 +179,39 @@ func pStruct(s *SourceFile, struct0 *gi.StructInfo, funcs []string) {
 func pObject(s *SourceFile, object *gi.ObjectInfo, funcs []string) {
 	s.AddGoImport("unsafe")
 	name := object.Name()
+	defer func() {
+		if err := recover(); err != nil {
+			log.Println("pObject", name)
+			panic(err)
+		}
+	}()
 	s.GoBody.Pn("// Object %s", name)
 
-	parent, parentNS := repo.GetType(object.Parent)
-	if parent == nil {
-		panic("fail to get type " + object.Parent)
-	}
+	if object.Parent != "" {
+		parent, parentNS := repo.GetType(object.Parent)
+		if parent == nil {
+			panic("fail to get type " + object.Parent)
+		}
 
-	var sameNS bool
-	if parentNS == repo.Namespace.Name {
-		sameNS = true
-	}
-	parentNS = strings.ToLower(parentNS)
+		var sameNS bool
+		if parentNS == repo.Namespace.Name {
+			sameNS = true
+		}
+		parentNS = strings.ToLower(parentNS)
 
-	s.GoBody.Pn("type %s struct {", name)
-	if sameNS {
-		s.GoBody.Pn("%s", parent.Name())
+		s.GoBody.Pn("type %s struct {", name)
+		if sameNS {
+			s.GoBody.Pn("%s", parent.Name())
+		} else {
+			s.AddGirImport(parentNS)
+			s.GoBody.Pn("%s.%s", parentNS, parent.Name())
+		}
+		s.GoBody.Pn("}")
 	} else {
-		s.AddGirImport(parentNS)
-		s.GoBody.Pn("%s.%s", parentNS, parent.Name())
+		s.GoBody.Pn("type %s struct {", name)
+		s.GoBody.Pn("Ptr unsafe.Pointer")
+		s.GoBody.Pn("}")
 	}
-	s.GoBody.Pn("}")
 
 	cPtrType := "*C." + object.CTypeAttr
 
@@ -239,6 +257,12 @@ func pObject(s *SourceFile, object *gi.ObjectInfo, funcs []string) {
 func pInterface(s *SourceFile, ifc *gi.InterfaceInfo, funcs []string) {
 	s.AddGoImport("unsafe")
 	name := ifc.Name()
+	defer func() {
+		if err := recover(); err != nil {
+			log.Println("pInterface", name)
+			panic(err)
+		}
+	}()
 	s.GoBody.Pn("// Interface %s", name)
 
 	s.GoBody.Pn("type %s struct {", name)
