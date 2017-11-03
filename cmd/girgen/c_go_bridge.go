@@ -69,6 +69,35 @@ func getBridgeForIntegerType(cgoType string) *CGoBridge {
 	}
 }
 
+func isSameNamespace(ns string) bool {
+	return ns == repo.Namespace.Name
+}
+
+// go to c
+func pParamGo2C(s *SourceFile, t *ParamTemplate) {
+	s.GoBody.Pn("\n// Var for Go: %s", t.VarForGo)
+	s.GoBody.Pn("// Var for C: %s", t.VarForC)
+	s.GoBody.Pn("// Type for Go: %s", t.bridge.TypeForGo)
+	s.GoBody.Pn("// Type for C: %s", t.bridge.TypeForC)
+	if t.bridge.CvtGo2C != "" {
+		s.GoBody.Pn("%s := %s", t.VarForC, t.CvtGo2C())
+
+		if t.bridge.CleanCvtGo2C != "" {
+			s.GoBody.Pn("defer %s", t.CleanCvtGo2C())
+		}
+	}
+}
+
+func pParamC2Go(s *SourceFile, t *ParamTemplate) {
+	if t.bridge.CvtC2Go != "" {
+		s.GoBody.Pn("%s := %s", t.VarForGo, t.CvtC2Go())
+
+		if t.bridge.CleanCvtGo2C != "" {
+			s.GoBody.Pn("defer %s", t.CleanCvtC2Go())
+		}
+	}
+}
+
 func getBridge(typ *gi.Type) *CGoBridge {
 	typeDef, ns := repo.GetType(typ.Name)
 	sameNs := isSameNamespace(ns)
