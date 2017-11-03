@@ -521,11 +521,19 @@ type ObjectInfo struct {
 	Fields     []*Field      `xml:"field"`
 	Signals    []*SignalInfo `xml:"signal"`
 
-	ImplementedInterfaces []*ImplementedInterface `xml:"implements"`
+	Implements []*ImplementedInterface `xml:"implements"`
 }
 
 type ImplementedInterface struct {
 	Name string `xml:"name,attr"`
+}
+
+func (oi ObjectInfo) ImplementedInterfaces() []string {
+	ret := make([]string, len(oi.Implements))
+	for idx, ifc := range oi.Implements {
+		ret[idx] = ifc.Name
+	}
+	return ret
 }
 
 type InterfaceInfo struct {

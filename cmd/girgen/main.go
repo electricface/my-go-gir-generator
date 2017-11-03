@@ -206,14 +206,9 @@ func pObject(s *SourceFile, object *gi.ObjectInfo, funcs []string) {
 			panic("fail to get type " + object.Parent)
 		}
 
-		var sameNS bool
-		if parentNS == repo.Namespace.Name {
-			sameNS = true
-		}
 		parentNSLower := strings.ToLower(parentNS)
-
 		s.GoBody.Pn("type %s struct {", name)
-		if sameNS {
+		if isSameNamespace(parentNS) {
 			s.GoBody.Pn("%s", parent.Name())
 		} else {
 			s.AddGirImport(parentNS)
@@ -244,6 +239,25 @@ func pObject(s *SourceFile, object *gi.ObjectInfo, funcs []string) {
 	s.GoBody.Pn("v.Ptr = p")
 	s.GoBody.Pn("return")
 	s.GoBody.Pn("}")
+
+	for _, ifc0 := range object.ImplementedInterfaces() {
+		ifc, ifcNS := repo.GetType(ifc0)
+		if ifc == nil {
+			panic("fail to get type " + ifc0)
+		}
+		ifcInfo := ifc.(*gi.InterfaceInfo)
+
+		ifcNSLower := strings.ToLower(ifcNS)
+		// method name is ifcInfo.Name()
+		if isSameNamespace(ifcNS) {
+			s.GoBody.Pn("func (v %s) %s() %s {", name, ifcInfo.Name(), ifcInfo.Name())
+			s.GoBody.Pn("    return Wrap%s(v.Ptr)", ifcInfo.Name())
+		} else {
+			s.GoBody.Pn("func (v %s) %s() %s.%s {", name, ifcInfo.Name(), ifcNSLower, ifcInfo.Name())
+			s.GoBody.Pn("    return %s.Wrap%s(v.Ptr) /*gir:%s*/", ifcNSLower, ifcInfo.Name(), ifcNS)
+		}
+		s.GoBody.Pn("}")
+	}
 
 	// constructors
 	for _, fn := range object.Constructors {
