@@ -210,14 +210,14 @@ func pObject(s *SourceFile, object *gi.ObjectInfo, funcs []string) {
 		if parentNS == repo.Namespace.Name {
 			sameNS = true
 		}
-		parentNS = strings.ToLower(parentNS)
+		parentNSLower := strings.ToLower(parentNS)
 
 		s.GoBody.Pn("type %s struct {", name)
 		if sameNS {
 			s.GoBody.Pn("%s", parent.Name())
 		} else {
 			s.AddGirImport(parentNS)
-			s.GoBody.Pn("%s.%s", parentNS, parent.Name())
+			s.GoBody.Pn("%s.%s", parentNSLower, parent.Name())
 		}
 		s.GoBody.Pn("}")
 	} else {
@@ -319,30 +319,31 @@ func pFunction(s *SourceFile, method *gi.FunctionInfo) {
 
 	var receiver string
 	var args []string
-	var instanceParamTpl *ParamPassInTemplate
-	var paramTpls []*ParamPassInTemplate
+	var instanceParamTpl *ParamTemplate
+	var paramTpls []*ParamTemplate
 
 	if method.Parameters != nil {
 		instanceParam := method.Parameters.InstanceParameter
 		if instanceParam != nil {
-			instanceParamTpl = newParamPassInTemplate(instanceParam)
-			receiver = "(" + instanceParamTpl.GetVarTypeForGo() + ")"
+			instanceParamTpl = newParamTemplate(instanceParam)
+			receiver = "(" + instanceParamTpl.VarTypeForGo() + ")"
 		}
 
 		for _, param := range method.Parameters.Parameters {
-			tpl := newParamPassInTemplate(param)
+			tpl := newParamTemplate(param)
 			paramTpls = append(paramTpls, tpl)
-			args = append(args, tpl.GetVarTypeForGo())
+			args = append(args, tpl.VarTypeForGo())
 		}
 	}
 
 	argsJoined := strings.Join(args, ", ")
 
 	var retTypes []string
-	var retValTpl *ReturnValueTemplate
+	var retValTpl *ParamTemplate
 	if method.ReturnValue.Type.Name != "none" {
-		retValTpl = newReturnValueTemplate(method.ReturnValue)
-		retTypes = append(retTypes, retValTpl.GetTypeForGo())
+		method.ReturnValue.Name = "ret"
+		retValTpl = newParamTemplate(method.ReturnValue)
+		retTypes = append(retTypes, retValTpl.bridge.TypeForGo)
 	}
 	if method.Throws {
 		retTypes = append(retTypes, "error")
@@ -357,21 +358,21 @@ func pFunction(s *SourceFile, method *gi.FunctionInfo) {
 	// start func body
 	var exprsInCall []string
 	if instanceParamTpl != nil {
-		instanceParamTpl.WriteDeclaration(s)
-		exprsInCall = append(exprsInCall, instanceParamTpl.GetExprInCall())
+		pParamGo2C(s, instanceParamTpl)
+		exprsInCall = append(exprsInCall, instanceParamTpl.ExprForC())
 	}
 
 	for _, paramTpl := range paramTpls {
-		paramTpl.WriteDeclaration(s)
+		pParamGo2C(s, paramTpl)
 	}
 
 	if method.Throws {
-		s.AddGirImport("glib")
+		s.AddGirImport("GLib")
 		s.GoBody.Pn("var err glib.Error")
 	}
 
 	for _, paramTpl := range paramTpls {
-		exprsInCall = append(exprsInCall, paramTpl.GetExprInCall())
+		exprsInCall = append(exprsInCall, paramTpl.ExprForC())
 	}
 	if method.Throws {
 		exprsInCall = append(exprsInCall, "(**C.GError)(unsafe.Pointer(&err))")
@@ -384,16 +385,18 @@ func pFunction(s *SourceFile, method *gi.FunctionInfo) {
 	s.GoBody.Pn(call)
 
 	if retValTpl != nil {
+		pParamC2Go(s, retValTpl)
+
 		if method.Throws {
 			s.GoBody.Pn("if err.Ptr != nil {")
 			s.GoBody.Pn("defer err.Free()")
-			s.GoBody.Pn("return %s, err.GoValue()", retValTpl.ErrorReturn())
+			s.GoBody.Pn("return %s, err.GoValue()", retValTpl.ErrExprForGo())
 			s.GoBody.Pn("}")
-			retValTpl.WriteClean(s)
-			s.GoBody.Pn("return %s,nil", retValTpl.NormalReturn())
+			//retValTpl.WriteClean(s)
+			s.GoBody.Pn("return %s,nil", retValTpl.ExprForGo())
 		} else {
-			retValTpl.WriteClean(s)
-			s.GoBody.Pn("return %s", retValTpl.NormalReturn())
+			//retValTpl.WriteClean(s)
+			s.GoBody.Pn("return %s", retValTpl.ExprForGo())
 		}
 
 	} else {

@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// key 如 GLib-2.0
 var loadedRepos = make(map[string]*Repository)
 
 func GetLoadedRepo(ns string) *Repository {
@@ -16,7 +17,7 @@ func GetLoadedRepo(ns string) *Repository {
 	}
 
 	for nsVer, repo := range loadedRepos {
-		if strings.HasPrefix(strings.ToLower(nsVer), ns) {
+		if strings.HasPrefix(nsVer, ns) {
 			return repo
 		}
 	}

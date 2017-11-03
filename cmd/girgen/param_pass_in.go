@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/electricface/my-go-gir-generator/gi"
+	"log"
 )
 
 var goParamPassInDescMap = map[string]*GoParamPassInDesc{
@@ -129,6 +130,31 @@ func (t *ParamPassInTemplate) WriteDeclaration(s *SourceFile) {
 	}
 }
 
+// go to c
+func pParamGo2C(s *SourceFile, t *ParamTemplate) {
+	s.GoBody.Pn("\n// Var for Go: %s", t.VarForGo)
+	s.GoBody.Pn("// Var for C: %s", t.VarForC)
+	s.GoBody.Pn("// Type for Go: %s", t.bridge.TypeForGo)
+	s.GoBody.Pn("// Type for C: %s", t.bridge.TypeForC)
+	if t.bridge.CvtGo2C != "" {
+		s.GoBody.Pn("%s := %s", t.VarForC, t.CvtGo2C())
+
+		if t.bridge.CleanCvtGo2C != "" {
+			s.GoBody.Pn("defer %s", t.CleanCvtGo2C())
+		}
+	}
+}
+
+func pParamC2Go(s *SourceFile, t *ParamTemplate) {
+	if t.bridge.CvtC2Go != "" {
+		s.GoBody.Pn("%s := %s", t.VarForGo, t.CvtC2Go())
+
+		if t.bridge.CleanCvtGo2C != "" {
+			s.GoBody.Pn("defer %s", t.CleanCvtC2Go())
+		}
+	}
+}
+
 func (t *ParamPassInTemplate) GetExprInCall() string {
 	return t.replace(t.desc.ExprInCall)
 }
@@ -152,7 +178,8 @@ func isSameNamespace(ns string) bool {
 func getGoParamPassInDescForIntegerType(cgoType string) *GoParamPassInDesc {
 	typ := strings.TrimPrefix(cgoType, "C.")
 	switch typ {
-	case "gint", "guint",
+	case "int", "uint",
+		"gint", "guint",
 		"gint8", "guint8",
 		"gint16", "guint16",
 		"gint32", "guint32",
@@ -304,6 +331,21 @@ func getGoParamPassInDesc(ty *gi.Type) *GoParamPassInDesc {
 }
 
 func newParamPassInTemplate(param *gi.Parameter) *ParamPassInTemplate {
+	if param.Array != nil {
+		elemCType, err := gi.ParseCType(param.Array.ElemType.CType)
+		if err != nil {
+			panic(err)
+		}
+		TYPE := "[]" + elemCType.CgoNotation()
+		log.Println("TYPE:", TYPE)
+
+		// LENGTH
+		LENGTH := fmt.Sprintf("len(%s)", param.Name)
+		log.Println("LENGTH:", LENGTH)
+
+		panic("unsupported array")
+	}
+
 	passInDesc := getGoParamPassInDesc(param.Type)
 	if passInDesc == nil {
 		panic("fail to get passInDesc for " + param.Type.CType)

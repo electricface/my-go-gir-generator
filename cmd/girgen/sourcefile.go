@@ -126,6 +126,7 @@ func (s *SourceFile) AddGoImport(imp string) {
 }
 
 func (s *SourceFile) AddGirImport(ns string) {
+	log.Println("SourceFile.AddGirImport:", ns)
 	repo := gi.GetLoadedRepo(ns)
 	if repo == nil {
 		panic("failed to get loaded repo " + ns)
