@@ -307,6 +307,10 @@ func pInterface(s *SourceFile, ifc *gi.InterfaceInfo, funcs []string) {
 	}
 }
 
+func getVarTypeForGo(tpl ParamTemplate) string {
+	return tpl.VarForGo() + " " + tpl.TypeForGo()
+}
+
 func pFunction(s *SourceFile, method *gi.FunctionInfo) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -319,31 +323,31 @@ func pFunction(s *SourceFile, method *gi.FunctionInfo) {
 
 	var receiver string
 	var args []string
-	var instanceParamTpl *ParamTemplate
-	var paramTpls []*ParamTemplate
+	var instanceParamTpl ParamTemplate
+	var paramTpls []ParamTemplate
 
 	if method.Parameters != nil {
 		instanceParam := method.Parameters.InstanceParameter
 		if instanceParam != nil {
 			instanceParamTpl = newParamTemplate(instanceParam)
-			receiver = "(" + instanceParamTpl.VarTypeForGo() + ")"
+			receiver = "(" + getVarTypeForGo(instanceParamTpl) + ")"
 		}
 
 		for _, param := range method.Parameters.Parameters {
 			tpl := newParamTemplate(param)
 			paramTpls = append(paramTpls, tpl)
-			args = append(args, tpl.VarTypeForGo())
+			args = append(args, getVarTypeForGo(tpl))
 		}
 	}
 
 	argsJoined := strings.Join(args, ", ")
 
 	var retTypes []string
-	var retValTpl *ParamTemplate
+	var retValTpl ParamTemplate
 	if method.ReturnValue.Type.Name != "none" {
 		method.ReturnValue.Name = "ret"
 		retValTpl = newParamTemplate(method.ReturnValue)
-		retTypes = append(retTypes, retValTpl.bridge.TypeForGo)
+		retTypes = append(retTypes, retValTpl.TypeForGo())
 	}
 	if method.Throws {
 		retTypes = append(retTypes, "error")
@@ -358,12 +362,12 @@ func pFunction(s *SourceFile, method *gi.FunctionInfo) {
 	// start func body
 	var exprsInCall []string
 	if instanceParamTpl != nil {
-		pParamGo2C(s, instanceParamTpl)
+		instanceParamTpl.pGo2C(s)
 		exprsInCall = append(exprsInCall, instanceParamTpl.ExprForC())
 	}
 
 	for _, paramTpl := range paramTpls {
-		pParamGo2C(s, paramTpl)
+		paramTpl.pGo2C(s)
 	}
 
 	if method.Throws {
@@ -385,7 +389,7 @@ func pFunction(s *SourceFile, method *gi.FunctionInfo) {
 	s.GoBody.Pn(call)
 
 	if retValTpl != nil {
-		pParamC2Go(s, retValTpl)
+		retValTpl.pC2Go(s)
 
 		if method.Throws {
 			s.GoBody.Pn("if err.Ptr != nil {")
