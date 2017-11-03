@@ -311,29 +311,39 @@ func getVarTypeForGo(tpl ParamTemplate) string {
 	return tpl.VarForGo() + " " + tpl.TypeForGo()
 }
 
-func pFunction(s *SourceFile, method *gi.FunctionInfo) {
+func IsFuncReturnVoid(retVal *gi.Parameter) bool {
+	if retVal.Type != nil {
+		return retVal.Type.Name == "none"
+	}
+	// else is array?
+	if retVal.Array == nil {
+		panic("assert failed retVal.Array != nil")
+	}
+	return false
+}
+
+func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Println("pFunction", method.CIdentifier)
+			log.Println("pFunction", fn.CIdentifier)
 			panic(err)
 		}
 	}()
-	//spew.Dump(method)
-	s.GoBody.Pn("// %s is a wrapper around %s().", method.Name(), method.CIdentifier)
+	s.GoBody.Pn("// %s is a wrapper around %s().", fn.Name(), fn.CIdentifier)
 
 	var receiver string
 	var args []string
 	var instanceParamTpl ParamTemplate
 	var paramTpls []ParamTemplate
 
-	if method.Parameters != nil {
-		instanceParam := method.Parameters.InstanceParameter
+	if fn.Parameters != nil {
+		instanceParam := fn.Parameters.InstanceParameter
 		if instanceParam != nil {
 			instanceParamTpl = newParamTemplate(instanceParam)
 			receiver = "(" + getVarTypeForGo(instanceParamTpl) + ")"
 		}
 
-		for _, param := range method.Parameters.Parameters {
+		for _, param := range fn.Parameters.Parameters {
 			tpl := newParamTemplate(param)
 			paramTpls = append(paramTpls, tpl)
 			args = append(args, getVarTypeForGo(tpl))
@@ -344,12 +354,13 @@ func pFunction(s *SourceFile, method *gi.FunctionInfo) {
 
 	var retTypes []string
 	var retValTpl ParamTemplate
-	if method.ReturnValue.Type.Name != "none" {
-		method.ReturnValue.Name = "ret"
-		retValTpl = newParamTemplate(method.ReturnValue)
+
+	if !IsFuncReturnVoid(fn.ReturnValue) {
+		fn.ReturnValue.Name = "ret"
+		retValTpl = newParamTemplate(fn.ReturnValue)
 		retTypes = append(retTypes, retValTpl.TypeForGo())
 	}
-	if method.Throws {
+	if fn.Throws {
 		retTypes = append(retTypes, "error")
 	}
 
@@ -357,7 +368,7 @@ func pFunction(s *SourceFile, method *gi.FunctionInfo) {
 	if strings.Contains(retTypesJoined, ",") {
 		retTypesJoined = "(" + retTypesJoined + ")"
 	}
-	s.GoBody.Pn("func %s %s (%s) %s {", receiver, method.Name(), argsJoined, retTypesJoined)
+	s.GoBody.Pn("func %s %s (%s) %s {", receiver, fn.Name(), argsJoined, retTypesJoined)
 
 	// start func body
 	var exprsInCall []string
@@ -370,7 +381,7 @@ func pFunction(s *SourceFile, method *gi.FunctionInfo) {
 		paramTpl.pGo2C(s)
 	}
 
-	if method.Throws {
+	if fn.Throws {
 		s.AddGirImport("GLib")
 		s.GoBody.Pn("var err glib.Error")
 	}
@@ -378,11 +389,11 @@ func pFunction(s *SourceFile, method *gi.FunctionInfo) {
 	for _, paramTpl := range paramTpls {
 		exprsInCall = append(exprsInCall, paramTpl.ExprForC())
 	}
-	if method.Throws {
+	if fn.Throws {
 		exprsInCall = append(exprsInCall, "(**C.GError)(unsafe.Pointer(&err))")
 	}
 
-	call := fmt.Sprintf("C.%s(%s)", method.CIdentifier, strings.Join(exprsInCall, ", "))
+	call := fmt.Sprintf("C.%s(%s)", fn.CIdentifier, strings.Join(exprsInCall, ", "))
 	if retValTpl != nil {
 		s.GoBody.P("ret0 := ")
 	}
@@ -391,7 +402,7 @@ func pFunction(s *SourceFile, method *gi.FunctionInfo) {
 	if retValTpl != nil {
 		retValTpl.pC2Go(s)
 
-		if method.Throws {
+		if fn.Throws {
 			s.GoBody.Pn("if err.Ptr != nil {")
 			s.GoBody.Pn("defer err.Free()")
 			s.GoBody.Pn("return %s, err.GoValue()", retValTpl.ErrExprForGo())
@@ -405,7 +416,7 @@ func pFunction(s *SourceFile, method *gi.FunctionInfo) {
 
 	} else {
 		// retValTpl is nil
-		if method.Throws {
+		if fn.Throws {
 			s.GoBody.Pn("if err.Ptr != nil {")
 			s.GoBody.Pn("defer err.Free()")
 			s.GoBody.Pn("return err.GoValue()")

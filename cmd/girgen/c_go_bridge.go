@@ -50,8 +50,8 @@ func isSameNamespace(ns string) bool {
 	return ns == repo.Namespace.Name
 }
 
-func getBridge(typ *gi.Type) *CGoBridge {
-	typeDef, ns := repo.GetType(typ.Name)
+func getBridge(typeName string, cType *gi.CType) *CGoBridge {
+	typeDef, ns := repo.GetType(typeName)
 	sameNs := isSameNamespace(ns)
 	nsLower := strings.ToLower(ns)
 
@@ -80,18 +80,13 @@ func getBridge(typ *gi.Type) *CGoBridge {
 		}
 
 		if isStruct || isObject || isInterface {
-			cType, err := gi.ParseCType(typ.CType)
-			if err != nil {
-				panic(err)
-			}
-
 			var isGPointer bool
 			if cType.CgoNotation() == "C.gpointer" {
 				isGPointer = true
 			}
 
 			if cType.NumStar != 1 && !isGPointer {
-				panic("assert failed cType.NumStr == 1, ctype is " + typ.CType)
+				panic("assert failed cType.NumStr == 1, ctype is " + cType.CgoNotation())
 			}
 
 			var typeForGo string
@@ -129,10 +124,6 @@ func getBridge(typ *gi.Type) *CGoBridge {
 		}
 	}
 
-	cType, err := gi.ParseCType(typ.CType)
-	if err != nil {
-		panic(err)
-	}
 	typeForC := cType.CgoNotation()
 
 	br := getBridgeForIntegerType(typeForC)
@@ -140,7 +131,7 @@ func getBridge(typ *gi.Type) *CGoBridge {
 		return br
 	}
 
-	key := typeForC + "," + typ.Name
+	key := typeForC + "," + typeName
 	return cGoBridgeMap[key]
 }
 

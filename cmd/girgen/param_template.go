@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/electricface/my-go-gir-generator/gi"
 	"strings"
+
+	"github.com/electricface/my-go-gir-generator/gi"
 )
 
 type ParamTemplate interface {
@@ -18,27 +19,37 @@ type ParamTemplate interface {
 	ErrExprForGo() string
 }
 
-type SimpleParamTemplate struct {
-	varForC  string
-	varForGo string
-	bridge   *CGoBridge
+func newParamTemplate(param *gi.Parameter) ParamTemplate {
+	if param.Type != nil {
+		return newSimpleParamTemplate(param)
+	}
+	if param.Array != nil {
+		return newArrayParamTemplate(param)
+	}
+	return nil
 }
 
-func newParamTemplate(param *gi.Parameter) *SimpleParamTemplate {
+func newSimpleParamTemplate(param *gi.Parameter) *SimpleParamTemplate {
 	tpl := new(SimpleParamTemplate)
 	tpl.varForC = param.Name + "0"
 	tpl.varForGo = param.Name
 
 	// param.Type -> bridge
-	tpl.bridge = getBridge(param.Type)
+	cType, err := gi.ParseCType(param.Type.CType)
+	if err != nil {
+		panic(err)
+	}
+	tpl.bridge = getBridge(param.Type.Name, cType)
 	if tpl.bridge == nil {
-		cType, err := gi.ParseCType(param.Type.CType)
-		if err != nil {
-			panic(err)
-		}
 		panic(fmt.Errorf("fail to get bridge for type %s,%s", cType.CgoNotation(), param.Type.Name))
 	}
 	return tpl
+}
+
+type SimpleParamTemplate struct {
+	varForC  string
+	varForGo string
+	bridge   *CGoBridge
 }
 
 func (tpl *SimpleParamTemplate) VarForGo() string {
@@ -109,4 +120,101 @@ func (tpl *SimpleParamTemplate) replace(in string) string {
 		"$g", tpl.varForGo,
 		"$c", tpl.varForC)
 	return replacer.Replace(in)
+}
+
+type ArrayParamTemplate struct {
+	varForGo  string
+	varForC   string
+	bridge    *CGoBridge
+	array     *gi.ArrayType
+	elemCType *gi.CType
+}
+
+func newArrayParamTemplate(param *gi.Parameter) *ArrayParamTemplate {
+	array := param.Array
+
+	tpl := new(ArrayParamTemplate)
+	tpl.varForGo = param.Name
+	tpl.varForC = param.Name + "0"
+	tpl.array = array
+
+	arrayCType, err := gi.ParseCType(array.CType)
+	if err != nil {
+		panic(err)
+	}
+	elemCType := arrayCType.Elem()
+	tpl.elemCType = elemCType
+
+	tpl.bridge = getBridge(array.ElemType.Name, elemCType)
+	return tpl
+}
+
+func (tpl *ArrayParamTemplate) VarForGo() string {
+	return tpl.varForGo
+}
+
+func (tpl *ArrayParamTemplate) TypeForGo() string {
+	return "[]" + tpl.bridge.TypeForGo
+}
+
+func (tpl *ArrayParamTemplate) ExprForC() string {
+	// TODO:
+	return tpl.replace(tpl.bridge.ExprForC)
+}
+
+func (tpl *ArrayParamTemplate) ExprForGo() string {
+	return tpl.varForGo
+}
+
+func (tpl *ArrayParamTemplate) ErrExprForGo() string {
+	return "nil"
+}
+
+func (tpl *ArrayParamTemplate) replace(in string) string {
+	replacer := strings.NewReplacer("$C", tpl.bridge.TypeForC,
+		"$G", tpl.bridge.TypeForGo,
+		"$g", "elemG",
+		"$c", "elem")
+	return replacer.Replace(in)
+}
+
+func (tpl *ArrayParamTemplate) getCSliceLengthExpr() string {
+	var elemInstance string
+	if tpl.elemCType.NumStar > 0 {
+		elemInstance = "uintptr(0)"
+	} else {
+		// ex. C.GType(0)
+		elemInstance = tpl.elemCType.CgoNotation() + "(0)"
+	}
+
+	if tpl.array.ZeroTerminated {
+		return fmt.Sprintf("util.GetZeroTermArrayLen(unsafe.Pointer(%s), unsafe.Sizeof(%s)) /*go:.util*/",
+			tpl.varForC, elemInstance)
+	}
+	return "0 /*TODO*/"
+}
+
+func (tpl *ArrayParamTemplate) pC2Go(s *SourceFile) {
+	cSlice := tpl.varForC + "Slice"
+	s.GoBody.Pn("var %s []%s", cSlice, tpl.bridge.TypeForC)
+
+	s.GoBody.Pn("%sLength := %s", cSlice, tpl.getCSliceLengthExpr())
+	s.GoBody.Pn("util.SetSliceDataLen(unsafe.Pointer(&%s), unsafe.Pointer(%s), %sLength) /*go:.util*/",
+		cSlice, tpl.varForC, cSlice)
+	s.GoBody.Pn("%s := make([]%s, len(%s))", tpl.varForGo, tpl.bridge.TypeForGo, cSlice)
+	s.GoBody.Pn("for idx, elem := range %s {", cSlice)
+
+	if tpl.bridge.CvtC2Go != "" {
+		s.GoBody.Pn("    elemG := %s", tpl.replace(tpl.bridge.CvtC2Go))
+		if tpl.bridge.CleanCvtC2Go != "" {
+			s.GoBody.Pn("    defer %s", tpl.replace(tpl.bridge.CleanCvtC2Go))
+		}
+	}
+	s.GoBody.Pn("    %s[idx] = %s", tpl.varForGo, tpl.replace(tpl.bridge.ExprForGo))
+
+	s.GoBody.Pn("}") // end for
+}
+
+func (tpl *ArrayParamTemplate) pGo2C(s *SourceFile) {
+	// TODO:
 }

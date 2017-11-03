@@ -60,3 +60,17 @@ func (ct *CType) CgoNotation() string {
 	ret = ret + "C." + name
 	return ret
 }
+
+func (ct *CType) Elem() *CType {
+	numStar := ct.NumStar - 1
+	if numStar < 0 {
+		panic("assert failed numStr >= 0")
+	}
+
+	return &CType{
+		Name:       ct.Name,
+		NumStar:    numStar,
+		IsConst:    ct.IsConst,
+		IsUnsigned: ct.IsUnsigned,
+	}
+}
