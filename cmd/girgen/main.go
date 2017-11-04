@@ -367,11 +367,11 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 	argsJoined := strings.Join(args, ", ")
 
 	var retTypes []string
-	var retValTpl ParamTemplate
+	var retValTpl ReturnValueTemplate
 
 	if !IsFuncReturnVoid(fn.ReturnValue) {
 		fn.ReturnValue.Name = "ret"
-		retValTpl = newParamTemplate(fn.ReturnValue)
+		retValTpl = newReturnValueTemplate(fn.ReturnValue)
 		retTypes = append(retTypes, retValTpl.TypeForGo())
 	}
 	if fn.Throws {
@@ -387,12 +387,12 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 	// start func body
 	var exprsInCall []string
 	if instanceParamTpl != nil {
-		instanceParamTpl.pGo2CBeforeCall(s)
+		instanceParamTpl.pBeforeCall(s)
 		exprsInCall = append(exprsInCall, instanceParamTpl.ExprForC())
 	}
 
 	for _, paramTpl := range paramTpls {
-		paramTpl.pGo2CBeforeCall(s)
+		paramTpl.pBeforeCall(s)
 	}
 
 	if fn.Throws {
@@ -415,14 +415,14 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 
 	// after call
 	if instanceParamTpl != nil {
-		instanceParamTpl.pGo2CAfterCall(s)
+		instanceParamTpl.pAfterCall(s)
 	}
 	for _, paramTpl := range paramTpls {
-		paramTpl.pGo2CAfterCall(s)
+		paramTpl.pAfterCall(s)
 	}
 
 	if retValTpl != nil {
-		retValTpl.pC2GoAfterCall(s)
+		retValTpl.pAfterCall(s)
 
 		if fn.Throws {
 			s.GoBody.Pn("if err.Ptr != nil {")
