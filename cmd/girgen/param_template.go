@@ -19,9 +19,17 @@ type ParamTemplate interface {
 
 func newParamTemplate(param *gi.Parameter) ParamTemplate {
 	// direction in, out, inout
-	if param.Type != nil {
-		return newInParamTemplate(param)
+	if param.Direction == "" {
+		// direction in
+		if param.Type != nil {
+			return newInParamTemplate(param)
+		}
+	} else if param.Direction == "out" {
+		if param.Type != nil {
+			return newOutParamTemplate(param)
+		}
 	}
+
 	return nil
 }
 
@@ -102,11 +110,33 @@ type OutParamTemplate struct {
 	bridge   *CGoBridge
 }
 
+func newOutParamTemplate(param *gi.Parameter) *OutParamTemplate {
+	tpl := new(OutParamTemplate)
+	tpl.varForC = param.Name + "0"
+	tpl.varForGo = param.Name
+
+	// param.Type -> bridge
+	cType, err := gi.ParseCType(param.Type.CType)
+	if err != nil {
+		panic(err)
+	}
+
+	realCType := cType.Elem()
+
+	tpl.bridge = getBridge(param.Type.Name, realCType)
+	if tpl.bridge == nil {
+		panic(fmt.Errorf("fail to get bridge for type %s,%s",
+			realCType.CgoNotation(), param.Type.Name))
+	}
+	return tpl
+}
+
 func (tpl *OutParamTemplate) VarForGo() string {
 	return tpl.varForGo
 }
 
 func (tpl *OutParamTemplate) TypeForGo() string {
+	// maybe hide
 	return tpl.bridge.TypeForGo
 }
 
@@ -114,18 +144,34 @@ func (tpl *OutParamTemplate) ExprForC() string {
 	return "&" + tpl.varForC
 }
 
-func (*OutParamTemplate) ExprForGo() string {
-	panic("implement me")
+func (tpl *OutParamTemplate) ExprForGo() string {
+	return tpl.replace(tpl.bridge.ExprForGo)
 }
 
-func (*OutParamTemplate) ErrExprForGo() string {
-	panic("implement me")
+func (tpl *OutParamTemplate) ErrExprForGo() string {
+	return tpl.replace(tpl.bridge.ErrExprForGo)
 }
 
 func (tpl *OutParamTemplate) pBeforeCall(s *SourceFile) {
-	panic("implement me")
+	s.GoBody.Pn("var %s %s", tpl.varForC, tpl.bridge.TypeForC)
 }
 
 func (tpl *OutParamTemplate) pAfterCall(s *SourceFile) {
-	panic("implement me")
+
+	if tpl.bridge.CvtC2Go != "" {
+		s.GoBody.Pn("%s", tpl.replace(tpl.bridge.CvtC2Go))
+	}
+	//s.GoBody.Pn("%s := %s", tpl.varForGo, tpl.replace(tpl.bridge.ExprForGo))
+
+	if tpl.bridge.CvtC2Go != "" && tpl.bridge.CleanCvtC2Go != "" {
+		s.GoBody.Pn("defer %s", tpl.replace(tpl.bridge.CleanCvtC2Go))
+	}
+}
+
+func (tpl *OutParamTemplate) replace(in string) string {
+	replacer := strings.NewReplacer("$C", tpl.bridge.TypeForC,
+		"$G", tpl.bridge.TypeForGo,
+		"$g", tpl.varForGo,
+		"$c", tpl.varForC)
+	return replacer.Replace(in)
 }

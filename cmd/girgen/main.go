@@ -347,37 +347,66 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 
 	var receiver string
 	var args []string
+	var retTypes []string
 	var instanceParamTpl ParamTemplate
 	var paramTpls []ParamTemplate
+	var retValTpl ReturnValueTemplate
+	var retVals []string
+	var errRetVals []string
+
+	// return order: return value, param-out, error
+
+	if !IsFuncReturnVoid(fn.ReturnValue) {
+		fn.ReturnValue.Name = "ret"
+		retValTpl = newReturnValueTemplate(fn.ReturnValue)
+		if retValTpl == nil {
+			panic("newReturnValueTemplate failed")
+		}
+		retTypes = append(retTypes, retValTpl.TypeForGo())
+		retVals = append(retVals, retValTpl.ExprForGo())
+		errRetVals = append(errRetVals, retValTpl.ErrExprForGo())
+	}
 
 	if fn.Parameters != nil {
 		instanceParam := fn.Parameters.InstanceParameter
 		if instanceParam != nil {
 			instanceParamTpl = newParamTemplate(instanceParam)
+			if instanceParamTpl == nil {
+				panic("newParamTemplate failed for instance param " + instanceParam.Name)
+			}
 			receiver = "(" + getVarTypeForGo(instanceParamTpl) + ")"
 		}
 
 		for _, param := range fn.Parameters.Parameters {
 			tpl := newParamTemplate(param)
+			if tpl == nil {
+				panic("newParamTemplate failed for param " + param.Name)
+			}
+
 			paramTpls = append(paramTpls, tpl)
-			args = append(args, getVarTypeForGo(tpl))
+
+			if param.Direction == "" {
+				// direction in
+				args = append(args, getVarTypeForGo(tpl))
+			} else if param.Direction == "out" {
+				retTypes = append(retTypes, tpl.TypeForGo())
+				retVals = append(retVals, tpl.ExprForGo())
+				errRetVals = append(errRetVals, tpl.ErrExprForGo())
+
+			} else if param.Direction == "inout" {
+				panic("todo")
+			} else {
+				panic("invalid param direction")
+			}
+
 		}
 	}
 
-	argsJoined := strings.Join(args, ", ")
-
-	var retTypes []string
-	var retValTpl ReturnValueTemplate
-
-	if !IsFuncReturnVoid(fn.ReturnValue) {
-		fn.ReturnValue.Name = "ret"
-		retValTpl = newReturnValueTemplate(fn.ReturnValue)
-		retTypes = append(retTypes, retValTpl.TypeForGo())
-	}
 	if fn.Throws {
 		retTypes = append(retTypes, "error")
 	}
 
+	argsJoined := strings.Join(args, ", ")
 	retTypesJoined := strings.Join(retTypes, ", ")
 	if strings.Contains(retTypesJoined, ",") {
 		retTypesJoined = "(" + retTypesJoined + ")"
@@ -423,29 +452,21 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 
 	if retValTpl != nil {
 		retValTpl.pAfterCall(s)
-
-		if fn.Throws {
-			s.GoBody.Pn("if err.Ptr != nil {")
-			s.GoBody.Pn("defer err.Free()")
-			s.GoBody.Pn("return %s, err.GoValue()", retValTpl.ErrExprForGo())
-			s.GoBody.Pn("}")
-			//retValTpl.WriteClean(s)
-			s.GoBody.Pn("return %s,nil", retValTpl.ExprForGo())
-		} else {
-			//retValTpl.WriteClean(s)
-			s.GoBody.Pn("return %s", retValTpl.ExprForGo())
-		}
-
-	} else {
-		// retValTpl is nil
-		if fn.Throws {
-			s.GoBody.Pn("if err.Ptr != nil {")
-			s.GoBody.Pn("defer err.Free()")
-			s.GoBody.Pn("return err.GoValue()")
-			s.GoBody.Pn("}")
-			s.GoBody.Pn("return nil")
-		}
 	}
 
-	s.GoBody.Pn("}") // end body
+	retValsJoined := strings.Join(retVals, ", ")
+	if fn.Throws {
+		errRetValsJoined := strings.Join(errRetVals, ", ")
+
+		s.GoBody.Pn("if err.Ptr != nil {")
+		s.GoBody.Pn("defer err.Free()")
+		s.GoBody.Pn("return %s, err.GoValue()", errRetValsJoined)
+		s.GoBody.Pn("}") // end if
+
+		s.GoBody.Pn("return %s, nil", retValsJoined)
+
+	} else {
+		s.GoBody.Pn("return %s", retValsJoined)
+	}
+	s.GoBody.Pn("}") // end func
 }
