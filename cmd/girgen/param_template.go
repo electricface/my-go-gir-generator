@@ -11,18 +11,14 @@ type ParamTemplate interface {
 	VarForGo() string
 	TypeForGo() string
 
-	MarkIsReturnValue()
-
-	//pGo2C(s *SourceFile)
 	ExprForC() string
-	pGo2CBeforeCall(s *SourceFile) // direction in
+	pGo2CBeforeCall(s *SourceFile)
 	pGo2CAfterCall(s *SourceFile)
 
-	//pC2Go(s *SourceFile)
 	ExprForGo() string
 	ErrExprForGo() string
 
-	pC2GoBeforeCall(s *SourceFile) // direction out
+	pC2GoBeforeCall(s *SourceFile)
 	pC2GoAfterCall(s *SourceFile)
 }
 
@@ -54,14 +50,9 @@ func newSimpleParamTemplate(param *gi.Parameter) *SimpleParamTemplate {
 }
 
 type SimpleParamTemplate struct {
-	varForC       string
-	varForGo      string
-	bridge        *CGoBridge
-	isReturnValue bool
-}
-
-func (tpl *SimpleParamTemplate) MarkIsReturnValue() {
-	tpl.isReturnValue = true
+	varForC  string
+	varForGo string
+	bridge   *CGoBridge
 }
 
 func (tpl *SimpleParamTemplate) VarForGo() string {
@@ -90,53 +81,27 @@ func (tpl *SimpleParamTemplate) pGo2CBeforeCall(s *SourceFile) {
 	s.GoBody.Pn("// Type for Go: %s", tpl.bridge.TypeForGo)
 	s.GoBody.Pn("// Type for C: %s", tpl.bridge.TypeForC)
 	if tpl.bridge.CvtGo2C != "" {
-		s.GoBody.Pn("%s := %s", tpl.varForC, tpl.CvtGo2C())
-		//if tpl.bridge.CleanCvtGo2C != "" {
-		//	s.GoBody.Pn("defer %s", tpl.CleanCvtGo2C())
-		//}
+		s.GoBody.Pn("%s := %s", tpl.varForC, tpl.replace(tpl.bridge.CvtGo2C))
 	}
 }
 
 func (tpl *SimpleParamTemplate) pGo2CAfterCall(s *SourceFile) {
 	if tpl.bridge.CvtGo2C != "" && tpl.bridge.CleanCvtGo2C != "" {
-		s.GoBody.Pn("%s", tpl.CleanCvtGo2C())
+		s.GoBody.Pn("%s", tpl.replace(tpl.bridge.CleanCvtGo2C))
 	}
 }
 
 func (tpl *SimpleParamTemplate) pC2GoBeforeCall(s *SourceFile) {
-	if tpl.bridge.CvtC2Go != "" {
-		s.GoBody.Pn("%s := %s", tpl.varForGo, tpl.CvtC2Go())
-	}
 }
 
 func (tpl *SimpleParamTemplate) pC2GoAfterCall(s *SourceFile) {
-	if tpl.isReturnValue {
-		if tpl.bridge.CvtC2Go != "" {
-			s.GoBody.Pn("%s := %s", tpl.varForGo, tpl.CvtC2Go())
-		}
+	if tpl.bridge.CvtC2Go != "" {
+		s.GoBody.Pn("%s := %s", tpl.varForGo, tpl.replace(tpl.bridge.CvtC2Go))
 	}
 
 	if tpl.bridge.CvtC2Go != "" && tpl.bridge.CleanCvtC2Go != "" {
-		s.GoBody.Pn("%s", tpl.CleanCvtC2Go())
+		s.GoBody.Pn("%s", tpl.replace(tpl.bridge.CleanCvtC2Go))
 	}
-}
-
-// go -> c
-func (tpl *SimpleParamTemplate) CvtGo2C() string {
-	return tpl.replace(tpl.bridge.CvtGo2C)
-}
-
-func (tpl *SimpleParamTemplate) CleanCvtGo2C() string {
-	return tpl.replace(tpl.bridge.CleanCvtGo2C)
-}
-
-// c -> go
-func (tpl *SimpleParamTemplate) CvtC2Go() string {
-	return tpl.replace(tpl.bridge.CvtC2Go)
-}
-
-func (tpl *SimpleParamTemplate) CleanCvtC2Go() string {
-	return tpl.replace(tpl.bridge.CleanCvtC2Go)
 }
 
 func (tpl *SimpleParamTemplate) replace(in string) string {
@@ -148,12 +113,11 @@ func (tpl *SimpleParamTemplate) replace(in string) string {
 }
 
 type ArrayParamTemplate struct {
-	varForGo      string
-	varForC       string
-	bridge        *CGoBridge
-	isReturnValue bool
-	array         *gi.ArrayType
-	elemCType     *gi.CType
+	varForGo  string
+	varForC   string
+	bridge    *CGoBridge
+	array     *gi.ArrayType
+	elemCType *gi.CType
 }
 
 func newArrayParamTemplate(param *gi.Parameter) *ArrayParamTemplate {
@@ -173,10 +137,6 @@ func newArrayParamTemplate(param *gi.Parameter) *ArrayParamTemplate {
 
 	tpl.bridge = getBridge(array.ElemType.Name, elemCType)
 	return tpl
-}
-
-func (tpl *ArrayParamTemplate) MarkIsReturnValue() {
-	tpl.isReturnValue = true
 }
 
 func (tpl *ArrayParamTemplate) VarForGo() string {

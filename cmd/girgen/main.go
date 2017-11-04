@@ -372,7 +372,6 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 	if !IsFuncReturnVoid(fn.ReturnValue) {
 		fn.ReturnValue.Name = "ret"
 		retValTpl = newParamTemplate(fn.ReturnValue)
-		retValTpl.MarkIsReturnValue()
 		retTypes = append(retTypes, retValTpl.TypeForGo())
 	}
 	if fn.Throws {
