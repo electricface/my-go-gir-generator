@@ -122,7 +122,7 @@ func getOutputFileBaseName(cfg *GenFileConfig) string {
 
 func pEnum(s *SourceFile, enum *gi.EnumInfo) {
 	name := enum.Name()
-	s.GoBody.Pn("type %s %s", name, enum.CType().CgoNotation())
+	s.GoBody.Pn("type %s int", name)
 	s.GoBody.Pn("const (")
 	for i, member := range enum.Members {
 		memberName := name + snake2Camel(member.Name)
@@ -372,6 +372,7 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 	if !IsFuncReturnVoid(fn.ReturnValue) {
 		fn.ReturnValue.Name = "ret"
 		retValTpl = newParamTemplate(fn.ReturnValue)
+		retValTpl.MarkIsReturnValue()
 		retTypes = append(retTypes, retValTpl.TypeForGo())
 	}
 	if fn.Throws {
@@ -387,12 +388,12 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 	// start func body
 	var exprsInCall []string
 	if instanceParamTpl != nil {
-		instanceParamTpl.pGo2C(s)
+		instanceParamTpl.pGo2CBeforeCall(s)
 		exprsInCall = append(exprsInCall, instanceParamTpl.ExprForC())
 	}
 
 	for _, paramTpl := range paramTpls {
-		paramTpl.pGo2C(s)
+		paramTpl.pGo2CBeforeCall(s)
 	}
 
 	if fn.Throws {
@@ -413,8 +414,16 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 	}
 	s.GoBody.Pn(call)
 
+	// after call
+	if instanceParamTpl != nil {
+		instanceParamTpl.pGo2CAfterCall(s)
+	}
+	for _, paramTpl := range paramTpls {
+		paramTpl.pGo2CAfterCall(s)
+	}
+
 	if retValTpl != nil {
-		retValTpl.pC2Go(s)
+		retValTpl.pC2GoAfterCall(s)
 
 		if fn.Throws {
 			s.GoBody.Pn("if err.Ptr != nil {")
