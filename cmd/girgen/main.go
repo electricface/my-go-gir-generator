@@ -465,7 +465,7 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 
 		s.GoBody.Pn("return %s, nil", retValsJoined)
 
-	} else {
+	} else if len(retVals) > 0 {
 		s.GoBody.Pn("return %s", retValsJoined)
 	}
 	s.GoBody.Pn("}") // end func

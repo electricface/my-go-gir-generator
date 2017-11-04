@@ -27,15 +27,17 @@ func newReturnValueTemplate(param *gi.Parameter) ReturnValueTemplate {
 // return value
 // not array
 type SimpleReturnValueTemplate struct {
-	varForGo string
-	varForC  string
-	bridge   *CGoBridge
+	varForGo          string
+	varForC           string
+	bridge            *CGoBridge
+	transferOwnership string
 }
 
 func newSimpleReturnValueTemplate(param *gi.Parameter) *SimpleReturnValueTemplate {
 	tpl := new(SimpleReturnValueTemplate)
 	tpl.varForC = param.Name + "0"
 	tpl.varForGo = param.Name
+	tpl.transferOwnership = param.TransferOwnership
 
 	// param.Type -> bridge
 	cType, err := gi.ParseCType(param.Type.CType)
@@ -70,7 +72,8 @@ func (tpl *SimpleReturnValueTemplate) pAfterCall(s *SourceFile) {
 		s.GoBody.Pn("%s := %s", tpl.varForGo, tpl.replace(tpl.bridge.CvtC2Go))
 	}
 
-	if tpl.bridge.CvtC2Go != "" && tpl.bridge.CleanCvtC2Go != "" {
+	if tpl.transferOwnership == "full" &&
+		tpl.bridge.CvtC2Go != "" && tpl.bridge.CleanCvtC2Go != "" {
 		s.GoBody.Pn("%s", tpl.replace(tpl.bridge.CleanCvtC2Go))
 	}
 }
@@ -90,11 +93,12 @@ func (tpl *SimpleReturnValueTemplate) ErrExprForGo() string {
 // return value
 // array
 type ArrayReturnValueTemplate struct {
-	varForGo  string
-	varForC   string
-	bridge    *CGoBridge
-	array     *gi.ArrayType
-	elemCType *gi.CType
+	varForGo          string
+	varForC           string
+	bridge            *CGoBridge
+	array             *gi.ArrayType
+	elemCType         *gi.CType
+	transferOwnership string
 }
 
 func newArrayReturnValueTemplate(param *gi.Parameter) *ArrayReturnValueTemplate {
@@ -103,6 +107,7 @@ func newArrayReturnValueTemplate(param *gi.Parameter) *ArrayReturnValueTemplate 
 	tpl := new(ArrayReturnValueTemplate)
 	tpl.varForGo = param.Name
 	tpl.varForC = param.Name + "0"
+	tpl.transferOwnership = param.TransferOwnership
 	tpl.array = array
 
 	arrayCType, err := gi.ParseCType(array.CType)
@@ -173,11 +178,18 @@ func (tpl *ArrayReturnValueTemplate) pAfterCall(s *SourceFile) {
 
 	if tpl.bridge.CvtC2Go != "" {
 		s.GoBody.Pn("    elemG := %s", tpl.replace(tpl.bridge.CvtC2Go))
-		if tpl.bridge.CleanCvtC2Go != "" {
-			s.GoBody.Pn("    defer %s", tpl.replace(tpl.bridge.CleanCvtC2Go))
-		}
 	}
 	s.GoBody.Pn("    %s[idx] = %s", tpl.varForGo, tpl.replace(tpl.bridge.ExprForGo))
 
+	if tpl.transferOwnership == "full" &&
+		tpl.bridge.CvtC2Go != "" && tpl.bridge.CleanCvtC2Go != "" {
+		s.GoBody.Pn("    %s", tpl.replace(tpl.bridge.CleanCvtC2Go))
+	}
+
 	s.GoBody.Pn("}") // end for
+
+	// free container
+	if tpl.transferOwnership == "full" || tpl.transferOwnership == "container" {
+		s.GoBody.Pn("C.g_free(C.gpointer(%s))", tpl.varForC)
+	}
 }
