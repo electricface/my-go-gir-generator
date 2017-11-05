@@ -132,7 +132,12 @@ func getBridge(typeName string, cType *gi.CType) *CGoBridge {
 	}
 
 	key := typeForC + "," + typeName
-	return cGoBridgeMap[key]
+	br = cGoBridgeMap[key]
+
+	if br == nil {
+		panic(fmt.Errorf("failed to get bridge for %s,%s", cType.CgoNotation(), typeName))
+	}
+	return br
 }
 
 var cGoBridgeMap = map[string]*CGoBridge{
@@ -201,6 +206,15 @@ var cGoBridgeMap = map[string]*CGoBridge{
 		ErrExprForGo: "unsafe.Pointer(nil)",
 	},
 
+	"C.gconstpointer,gpointer": {
+		TypeForGo: "unsafe.Pointer",
+		TypeForC:  "C.gconstpointer",
+
+		ExprForC:     "$C($g)",
+		ExprForGo:    "$G($c)",
+		ErrExprForGo: "unsafe.Pointer(nil)",
+	},
+
 	"C.guchar,guint8": {
 		TypeForGo: "byte",
 		TypeForC:  "C.guchar",
@@ -213,6 +227,24 @@ var cGoBridgeMap = map[string]*CGoBridge{
 	"C.gsize,gsize": {
 		TypeForGo: "uint",
 		TypeForC:  "C.gsize",
+
+		ExprForC:     "$C($g)",
+		ExprForGo:    "$G($c)",
+		ErrExprForGo: "0",
+	},
+
+	"C.gssize,gssize": {
+		TypeForGo: "int",
+		TypeForC:  "C.gssize",
+
+		ExprForC:     "$C($g)",
+		ExprForGo:    "$G($c)",
+		ErrExprForGo: "0",
+	},
+
+	"C.gchar,guint8": {
+		TypeForGo: "byte",
+		TypeForC:  "C.gchar",
 
 		ExprForC:     "$C($g)",
 		ExprForGo:    "$G($c)",
