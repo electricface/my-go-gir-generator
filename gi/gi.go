@@ -418,6 +418,8 @@ type ArrayType struct {
 	FixedSize      int            `xml:"fixed-size,attr"`
 	CType          string         `xml:"type,attr"`
 	ElemType       *ArrayElemType `xml:"type"`
+
+	LengthParameter *Parameter
 }
 
 type ArrayElemType struct {

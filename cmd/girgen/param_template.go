@@ -79,10 +79,6 @@ func (tpl *InParamTemplate) ErrExprForGo() string {
 }
 
 func (tpl *InParamTemplate) pBeforeCall(s *SourceFile) {
-	s.GoBody.Pn("\n// Var for Go: %s", tpl.varForGo)
-	s.GoBody.Pn("// Var for C: %s", tpl.varForC)
-	s.GoBody.Pn("// Type for Go: %s", tpl.bridge.TypeForGo)
-	s.GoBody.Pn("// Type for C: %s", tpl.bridge.TypeForC)
 	if tpl.bridge.CvtGo2C != "" {
 		s.GoBody.Pn("%s := %s", tpl.varForC, tpl.replace(tpl.bridge.CvtGo2C))
 	}

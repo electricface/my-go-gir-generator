@@ -336,6 +336,32 @@ func IsFuncReturnVoid(retVal *gi.Parameter) bool {
 	return false
 }
 
+func markLength(fn *gi.FunctionInfo) {
+	params := fn.Parameters
+	if params != nil {
+		for _, param := range params.Parameters {
+			if param.Array != nil {
+				lenIdx := param.Array.LengthIndex
+				if lenIdx >= 0 {
+					params.Parameters[lenIdx].LengthForParameter = param
+					param.Array.LengthParameter = params.Parameters[lenIdx]
+				}
+			}
+		}
+	}
+
+	retVal := fn.ReturnValue
+	if !IsFuncReturnVoid(retVal) {
+		if retVal.Array != nil {
+			lenIdx := retVal.Array.LengthIndex
+			if lenIdx >= 0 {
+				params.Parameters[lenIdx].LengthForParameter = retVal
+				retVal.Array.LengthParameter = params.Parameters[lenIdx]
+			}
+		}
+	}
+}
+
 func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -343,6 +369,7 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 			panic(err)
 		}
 	}()
+	markLength(fn)
 	s.GoBody.Pn("// %s is a wrapper around %s().", fn.Name(), fn.CIdentifier)
 
 	var receiver string
@@ -387,11 +414,16 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 
 			if param.Direction == "" {
 				// direction in
-				args = append(args, getVarTypeForGo(tpl))
+				if param.LengthForParameter == nil {
+					args = append(args, getVarTypeForGo(tpl))
+				}
 			} else if param.Direction == "out" {
-				retTypes = append(retTypes, tpl.TypeForGo())
-				retVals = append(retVals, tpl.ExprForGo())
-				errRetVals = append(errRetVals, tpl.ErrExprForGo())
+
+				if param.LengthForParameter == nil {
+					retTypes = append(retTypes, tpl.TypeForGo())
+					retVals = append(retVals, tpl.ExprForGo())
+					errRetVals = append(errRetVals, tpl.ErrExprForGo())
+				}
 
 			} else if param.Direction == "inout" {
 				panic("todo")

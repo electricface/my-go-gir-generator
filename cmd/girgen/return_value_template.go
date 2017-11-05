@@ -151,16 +151,19 @@ func (tpl *ArrayReturnValueTemplate) replace(in string) string {
 }
 
 func (tpl *ArrayReturnValueTemplate) getCSliceLengthExpr() string {
-	var elemInstance string
-	if tpl.elemCType.NumStar > 0 {
-		elemInstance = "uintptr(0)"
-	} else {
-		// ex. C.GType(0)
-		elemInstance = tpl.elemCType.CgoNotation() + "(0)"
+	if tpl.array.LengthParameter != nil {
+		return fmt.Sprintf("int(%s)", tpl.array.LengthParameter.Name+"0")
 	}
 
 	if tpl.array.ZeroTerminated {
-		return fmt.Sprintf("util.GetZeroTermArrayLen(unsafe.Pointer(%s), unsafe.Sizeof(%s)) /*go:.util*/",
+		var elemInstance string
+		if tpl.elemCType.NumStar > 0 {
+			elemInstance = "uintptr(0)"
+		} else {
+			// ex. C.GType(0)
+			elemInstance = tpl.elemCType.CgoNotation() + "(0)"
+		}
+		return fmt.Sprintf("\n util.GetZeroTermArrayLen(unsafe.Pointer(%s), unsafe.Sizeof(%s)) /*go:.util*/",
 			tpl.varForC, elemInstance)
 	}
 	return "0 /*TODO*/"
@@ -170,9 +173,9 @@ func (tpl *ArrayReturnValueTemplate) pAfterCall(s *SourceFile) {
 	cSlice := tpl.varForC + "Slice"
 	s.GoBody.Pn("var %s []%s", cSlice, tpl.bridge.TypeForC)
 
-	s.GoBody.Pn("%sLength := %s", cSlice, tpl.getCSliceLengthExpr())
-	s.GoBody.Pn("util.SetSliceDataLen(unsafe.Pointer(&%s), unsafe.Pointer(%s), %sLength) /*go:.util*/",
-		cSlice, tpl.varForC, cSlice)
+	//s.GoBody.Pn("%sLength := %s", cSlice, tpl.getCSliceLengthExpr())
+	s.GoBody.Pn("util.SetSliceDataLen(unsafe.Pointer(&%s), unsafe.Pointer(%s), %s) /*go:.util*/",
+		cSlice, tpl.varForC, tpl.getCSliceLengthExpr())
 	s.GoBody.Pn("%s := make([]%s, len(%s))", tpl.varForGo, tpl.bridge.TypeForGo, cSlice)
 	s.GoBody.Pn("for idx, elem := range %s {", cSlice)
 
