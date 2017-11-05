@@ -24,6 +24,9 @@ func newParamTemplate(param *gi.Parameter) ParamTemplate {
 		if param.Type != nil {
 			return newInParamTemplate(param)
 		}
+		if param.Array != nil {
+			return newInArrayParamTemplate(param)
+		}
 	} else if param.Direction == "out" {
 		if param.Type != nil {
 			return newOutParamTemplate(param)
@@ -49,13 +52,18 @@ func newInParamTemplate(param *gi.Parameter) *InParamTemplate {
 	if tpl.bridge == nil {
 		panic(fmt.Errorf("fail to get bridge for type %s,%s", cType.CgoNotation(), param.Type.Name))
 	}
+
+	if param.LengthForParameter != nil {
+		tpl.lengthForParameter = param.LengthForParameter.Name
+	}
 	return tpl
 }
 
 type InParamTemplate struct {
-	varForC  string
-	varForGo string
-	bridge   *CGoBridge
+	varForC            string
+	varForGo           string
+	bridge             *CGoBridge
+	lengthForParameter string
 }
 
 func (tpl *InParamTemplate) VarForGo() string {
@@ -67,15 +75,19 @@ func (tpl *InParamTemplate) TypeForGo() string {
 }
 
 func (tpl *InParamTemplate) ExprForC() string {
+	if tpl.lengthForParameter != "" {
+		return fmt.Sprintf("%s(len(%s))", tpl.bridge.TypeForC, tpl.lengthForParameter)
+	}
+
 	return tpl.replace(tpl.bridge.ExprForC)
 }
 
 func (tpl *InParamTemplate) ExprForGo() string {
-	return tpl.replace(tpl.bridge.ExprForGo)
+	panic("call the function should not be called")
 }
 
 func (tpl *InParamTemplate) ErrExprForGo() string {
-	return tpl.replace(tpl.bridge.ErrExprForGo)
+	panic("call the function should not be called")
 }
 
 func (tpl *InParamTemplate) pBeforeCall(s *SourceFile) {
@@ -96,6 +108,84 @@ func (tpl *InParamTemplate) replace(in string) string {
 		"$g", tpl.varForGo,
 		"$c", tpl.varForC)
 	return replacer.Replace(in)
+}
+
+type InArrayParamTemplate struct {
+	varForC   string
+	varForGo  string
+	bridge    *CGoBridge
+	array     *gi.ArrayType
+	elemCType *gi.CType
+}
+
+func newInArrayParamTemplate(param *gi.Parameter) *InArrayParamTemplate {
+	array := param.Array
+	tpl := new(InArrayParamTemplate)
+	tpl.varForC = param.Name + "0"
+	tpl.varForGo = param.Name
+	tpl.array = array
+
+	arrayCType, err := gi.ParseCType(array.CType)
+	if err != nil {
+		panic(err)
+	}
+	elemCType := arrayCType.Elem()
+	tpl.elemCType = elemCType
+
+	tpl.bridge = getBridge(array.ElemType.Name, elemCType)
+	return tpl
+}
+
+func (tpl *InArrayParamTemplate) VarForGo() string {
+	return tpl.varForGo
+}
+
+func (tpl *InArrayParamTemplate) TypeForGo() string {
+	return "[]" + tpl.bridge.TypeForGo
+}
+
+func (tpl *InArrayParamTemplate) pBeforeCall(s *SourceFile) {
+	s.GoBody.Pn("%s := make([]%s, len(%s))", tpl.varForC, tpl.bridge.TypeForC, tpl.varForGo)
+	s.GoBody.Pn("for idx, elemG := range %s {", tpl.varForGo)
+
+	if tpl.bridge.CvtGo2C != "" {
+		s.GoBody.Pn("    elem := %s", tpl.replace(tpl.bridge.CvtGo2C))
+	}
+	s.GoBody.Pn("    %s[idx] = %s", tpl.varForC, tpl.replace(tpl.bridge.ExprForC))
+	s.GoBody.Pn("}") // end for
+
+	s.GoBody.Pn("var %sPtr *%s", tpl.varForC, tpl.bridge.TypeForC)
+	s.GoBody.Pn("if len(%s) > 0 {", tpl.varForC)
+	s.GoBody.Pn("    %sPtr = &%s[0]", tpl.varForC, tpl.varForC)
+	s.GoBody.Pn("}")
+}
+
+func (tpl *InArrayParamTemplate) pAfterCall(s *SourceFile) {
+	if tpl.bridge.CvtGo2C != "" && tpl.bridge.CleanCvtGo2C != "" {
+		s.GoBody.Pn("for _, elem := range %s {", tpl.varForC)
+		s.GoBody.Pn("    %s", tpl.replace(tpl.bridge.CleanCvtGo2C))
+		s.GoBody.Pn("}")
+	}
+}
+
+func (tpl *InArrayParamTemplate) replace(in string) string {
+	replacer := strings.NewReplacer("$C", tpl.bridge.TypeForC,
+		"$G", tpl.bridge.TypeForGo,
+		"$g", "elemG",
+		"$c", "elem")
+	return replacer.Replace(in)
+}
+
+func (tpl *InArrayParamTemplate) ExprForC() string {
+	return tpl.varForC + "Ptr"
+}
+
+func (tpl *InArrayParamTemplate) ExprForGo() string {
+	panic("call the function should not be called")
+}
+
+func (*InArrayParamTemplate) ErrExprForGo() string {
+	panic("call the function should not be called")
 }
 
 // is param
@@ -157,7 +247,6 @@ func (tpl *OutParamTemplate) pAfterCall(s *SourceFile) {
 	if tpl.bridge.CvtC2Go != "" {
 		s.GoBody.Pn("%s", tpl.replace(tpl.bridge.CvtC2Go))
 	}
-	//s.GoBody.Pn("%s := %s", tpl.varForGo, tpl.replace(tpl.bridge.ExprForGo))
 
 	if tpl.bridge.CvtC2Go != "" && tpl.bridge.CleanCvtC2Go != "" {
 		s.GoBody.Pn("defer %s", tpl.replace(tpl.bridge.CleanCvtC2Go))

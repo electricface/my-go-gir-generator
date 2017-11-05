@@ -59,10 +59,6 @@ func (tpl *SimpleReturnValueTemplate) replace(in string) string {
 	return replacer.Replace(in)
 }
 
-func (tpl *SimpleReturnValueTemplate) VarForGo() string {
-	return tpl.varForGo
-}
-
 func (tpl *SimpleReturnValueTemplate) TypeForGo() string {
 	return tpl.bridge.TypeForGo
 }
@@ -76,10 +72,6 @@ func (tpl *SimpleReturnValueTemplate) pAfterCall(s *SourceFile) {
 		tpl.bridge.CvtC2Go != "" && tpl.bridge.CleanCvtC2Go != "" {
 		s.GoBody.Pn("%s", tpl.replace(tpl.bridge.CleanCvtC2Go))
 	}
-}
-
-func (tpl *SimpleReturnValueTemplate) ExprForC() string {
-	return tpl.replace(tpl.bridge.ExprForC)
 }
 
 func (tpl *SimpleReturnValueTemplate) ExprForGo() string {
@@ -121,17 +113,8 @@ func newArrayReturnValueTemplate(param *gi.Parameter) *ArrayReturnValueTemplate 
 	return tpl
 }
 
-func (tpl *ArrayReturnValueTemplate) VarForGo() string {
-	return tpl.varForGo
-}
-
 func (tpl *ArrayReturnValueTemplate) TypeForGo() string {
 	return "[]" + tpl.bridge.TypeForGo
-}
-
-func (tpl *ArrayReturnValueTemplate) ExprForC() string {
-	// TODO:
-	return tpl.replace(tpl.bridge.ExprForC)
 }
 
 func (tpl *ArrayReturnValueTemplate) ExprForGo() string {
