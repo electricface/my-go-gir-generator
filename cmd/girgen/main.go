@@ -46,15 +46,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	types := repo.GetTypes()
-	log.Print(len(types))
 	pkg := strings.ToLower(repo.Namespace.Name)
 	sourceFile := getSourceFile(repo, pkg)
 
-	for _, genFileCfg := range cfg.Types {
-		typeDef, ns := repo.GetType(genFileCfg.Name)
+	for _, genTypeCfg := range cfg.Types {
+		typeDef, ns := repo.GetType(genTypeCfg.Name)
 		if typeDef == nil {
-			panic("fail to get type for " + genFileCfg.Name)
+			panic("fail to get type for " + genTypeCfg.Name)
 		}
 		if ns != cfg.Namespace {
 			panic("assert failed ns == cfg.Namespace")
@@ -62,11 +60,11 @@ func main() {
 
 		switch td := typeDef.(type) {
 		case *gi.StructInfo:
-			pStruct(sourceFile, td, genFileCfg.Funcs)
+			pStruct(sourceFile, td, genTypeCfg.Funcs)
 		case *gi.InterfaceInfo:
-			pInterface(sourceFile, td, genFileCfg.Funcs)
+			pInterface(sourceFile, td, genTypeCfg.Funcs)
 		case *gi.ObjectInfo:
-			pObject(sourceFile, td, genFileCfg.Funcs)
+			pObject(sourceFile, td, genTypeCfg.Funcs)
 		}
 	}
 
@@ -87,12 +85,6 @@ func main() {
 	outFile := filepath.Join(dir, pkg+"_auto.go")
 	log.Println("outFile:", outFile)
 	sourceFile.Save(outFile)
-
-	//repo.GetType()
-	//
-	//for name, type0 := range types {
-	//	log.Printf("%s -> %T\n", name, type0)
-	//}
 }
 
 func getSourceFile(repo *gi.Repository, pkg string) *SourceFile {
