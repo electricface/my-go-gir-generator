@@ -106,9 +106,13 @@ func main() {
 	}
 
 	typeCfg := getTypeConfig(targetType, cfg)
+	var isNewType bool
 	if typeCfg == nil {
-		panic("todo")
-		// TODO:
+		typeCfg = &config.TypeConfig{
+			Name: targetType,
+		}
+		cfg.Types = append(cfg.Types, typeCfg)
+		isNewType = true
 	}
 
 loop:
@@ -117,6 +121,9 @@ loop:
 		nextFunc := getNextFunc(typeDef, funcMap)
 		if nextFunc == "" {
 			log.Print("no next func")
+			if isNewType {
+				saveCfg(cfgFile, cfg)
+			}
 			break
 		}
 
@@ -160,7 +167,6 @@ loop:
 }
 
 func test(dir string, cfg *config.PackageConfig) error {
-	log.Println("call test")
 	output, err := exec.Command("./girgen", dir).CombinedOutput()
 	os.Stdout.Write(output)
 	if err != nil {
@@ -169,7 +175,8 @@ func test(dir string, cfg *config.PackageConfig) error {
 	}
 
 	goPkg := filepath.Join(getGirProjectRoot(), strings.ToLower(cfg.Namespace)+"-"+cfg.Version)
-	output, err = exec.Command("go", "build", goPkg).CombinedOutput()
+	log.Println("go build", goPkg)
+	output, err = exec.Command("go", "build", "-i", "-v", goPkg).CombinedOutput()
 	os.Stdout.Write(output)
 	if err != nil {
 		log.Println("go build failed:", err)
