@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/cosiner/gohper/terminal/std"
 	"github.com/electricface/my-go-gir-generator/config"
 	"github.com/electricface/my-go-gir-generator/gi"
@@ -36,12 +37,13 @@ func getTypeConfig(targetType string, cfg *config.PackageConfig) *config.TypeCon
 const (
 	NormalFunc = iota
 	ErrFunc
-	ManualFuncs
+	ManualFunc
+	IgnoreFunc
 )
 
 func getTypeFuncMap(typeCfg *config.TypeConfig) map[string]int {
 	ret := make(map[string]int, len(typeCfg.Funcs)+len(typeCfg.ErrFuncs)+
-		len(typeCfg.ManualFuncs))
+		len(typeCfg.ManualFuncs)+len(typeCfg.IgnoreFuncs))
 	for _, fn := range typeCfg.Funcs {
 		if _, ok := ret[fn]; ok {
 			panic("duplicated func " + fn)
@@ -58,7 +60,13 @@ func getTypeFuncMap(typeCfg *config.TypeConfig) map[string]int {
 		if _, ok := ret[fn]; ok {
 			panic("duplicated func " + fn)
 		}
-		ret[fn] = ManualFuncs
+		ret[fn] = ManualFunc
+	}
+	for _, fn := range typeCfg.IgnoreFuncs {
+		if _, ok := ret[fn]; ok {
+			panic("duplicated func " + fn)
+		}
+		ret[fn] = IgnoreFunc
 	}
 	return ret
 }
@@ -123,23 +131,24 @@ loop:
 		err = test(dir, cfg)
 		if err != nil {
 			var interactor std.Interactor
-			input := interactor.ReadInput("add "+nextFunc+
-				" to e:err_funcs or m: manual_funcs, or quit\n", "e")
+			input := interactor.ReadInput("\nadd "+nextFunc+
+				" to err_funcs(e) or manual_funcs(m), or quit\n", "e")
 
-			log.Printf("input is %q\n", input)
 			switch input {
 			case "m":
+				log.Printf("add %s to manual_funcs", nextFunc)
 				typeCfg.Funcs = typeCfg.Funcs[:len(typeCfg.Funcs)-1]
 				typeCfg.ManualFuncs = append(typeCfg.ManualFuncs, nextFunc)
 				saveCfg(cfgFile, cfg)
 
 			case "e":
+				log.Printf("add %s to err_funcs", nextFunc)
 				typeCfg.Funcs = typeCfg.Funcs[:len(typeCfg.Funcs)-1]
 				typeCfg.ErrFuncs = append(typeCfg.ErrFuncs, nextFunc)
 				saveCfg(cfgFile, cfg)
 
 			default:
-				// recover
+				log.Println("recover config")
 				if err := os.Rename(cfgFileBackup, cfgFile); err != nil {
 					panic(err)
 				}
@@ -182,17 +191,17 @@ func saveCfg(filename string, cfg *config.PackageConfig) {
 func getNextFunc(typeDef gi.TypeDefine, funcMap map[string]int) string {
 	switch td := typeDef.(type) {
 	case *gi.StructInfo:
-		return handleStruct(td, funcMap)
-		//case *gi.InterfaceInfo:
-		//handleInterface(td)
-		//case *gi.ObjectInfo:
-		//handleObject(td)
+		return getStructNextFunc(td, funcMap)
+	case *gi.InterfaceInfo:
+		return getInterfaceNextFunc(td, funcMap)
+	case *gi.ObjectInfo:
+		return getObjectNextFunc(td, funcMap)
 	default:
-		panic("unsupported type")
+		panic(fmt.Errorf("unsupported type %T", typeDef))
 	}
 }
 
-func handleStruct(st *gi.StructInfo, funcMap map[string]int) string {
+func getStructNextFunc(st *gi.StructInfo, funcMap map[string]int) string {
 	for _, fn := range st.Constructors {
 		if _, ok := funcMap[fn.CIdentifier]; !ok {
 			return fn.CIdentifier
@@ -206,6 +215,44 @@ func handleStruct(st *gi.StructInfo, funcMap map[string]int) string {
 	}
 
 	for _, fn := range st.Functions {
+		if _, ok := funcMap[fn.CIdentifier]; !ok {
+			return fn.CIdentifier
+		}
+	}
+
+	return ""
+}
+
+func getInterfaceNextFunc(ifc *gi.InterfaceInfo, funcMap map[string]int) string {
+	for _, fn := range ifc.Methods {
+		if _, ok := funcMap[fn.CIdentifier]; !ok {
+			return fn.CIdentifier
+		}
+	}
+
+	for _, fn := range ifc.Functions {
+		if _, ok := funcMap[fn.CIdentifier]; !ok {
+			return fn.CIdentifier
+		}
+	}
+
+	return ""
+}
+
+func getObjectNextFunc(obj *gi.ObjectInfo, funcMap map[string]int) string {
+	for _, fn := range obj.Constructors {
+		if _, ok := funcMap[fn.CIdentifier]; !ok {
+			return fn.CIdentifier
+		}
+	}
+
+	for _, fn := range obj.Methods {
+		if _, ok := funcMap[fn.CIdentifier]; !ok {
+			return fn.CIdentifier
+		}
+	}
+
+	for _, fn := range obj.Functions {
 		if _, ok := funcMap[fn.CIdentifier]; !ok {
 			return fn.CIdentifier
 		}

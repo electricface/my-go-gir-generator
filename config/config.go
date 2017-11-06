@@ -17,6 +17,7 @@ type TypeConfig struct {
 	Funcs       []string `toml:"funcs"`
 	ManualFuncs []string `toml:"manual_funcs"`
 	ErrFuncs    []string `toml:"err_funcs"`
+	IgnoreFuncs []string `toml:"ignore_funcs"`
 }
 
 func Load(filename string) (*PackageConfig, error) {
