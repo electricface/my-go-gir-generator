@@ -129,9 +129,19 @@ func newInArrayParamTemplate(param *gi.Parameter) *InArrayParamTemplate {
 	if err != nil {
 		panic(err)
 	}
-	elemCType := arrayCType.Elem()
-	tpl.elemCType = elemCType
 
+	var elemCType *gi.CType
+	if array.CType == "gconstpointer" {
+		if array.ElemType.Name == "guint8" {
+			elemCType, _ = gi.ParseCType("guint8")
+		} else {
+			panic("todo")
+		}
+
+	} else {
+		elemCType = arrayCType.Elem()
+	}
+	tpl.elemCType = elemCType
 	tpl.bridge = getBridge(array.ElemType.Name, elemCType)
 	return tpl
 }

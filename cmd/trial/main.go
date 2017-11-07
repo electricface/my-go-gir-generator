@@ -139,7 +139,7 @@ loop:
 		if err != nil {
 			var interactor std.Interactor
 			input := interactor.ReadInput("\nadd "+nextFunc+
-				" to err_funcs(e) or manual_funcs(m), or quit\n", "e")
+				" to err_funcs(e) or manual_funcs(m) or ignore_funcs(i) or quit\n", "e")
 
 			switch input {
 			case "m":
@@ -152,6 +152,12 @@ loop:
 				log.Printf("add %s to err_funcs", nextFunc)
 				typeCfg.Funcs = typeCfg.Funcs[:len(typeCfg.Funcs)-1]
 				typeCfg.ErrFuncs = append(typeCfg.ErrFuncs, nextFunc)
+				saveCfg(cfgFile, cfg)
+
+			case "i":
+				log.Printf("add %s to ignore_funcs", nextFunc)
+				typeCfg.Funcs = typeCfg.Funcs[:len(typeCfg.Funcs)-1]
+				typeCfg.IgnoreFuncs = append(typeCfg.IgnoreFuncs, nextFunc)
 				saveCfg(cfgFile, cfg)
 
 			default:

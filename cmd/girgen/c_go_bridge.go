@@ -60,8 +60,9 @@ func getBridge(typeName string, cType *gi.CType) *CGoBridge {
 		_, isStruct := typeDef.(*gi.StructInfo)
 		_, isObject := typeDef.(*gi.ObjectInfo)
 		_, isInterface := typeDef.(*gi.InterfaceInfo)
+		_, isAlias := typeDef.(*gi.AliasInfo)
 
-		if isEnum {
+		if isEnum || isAlias {
 			var typeForGo string
 			if sameNs {
 				typeForGo = typeDef.Name()
@@ -75,18 +76,19 @@ func getBridge(typeName string, cType *gi.CType) *CGoBridge {
 
 				ExprForC: "$C($g)",
 
-				ExprForGo: typeForGo + "($c)",
+				ExprForGo: "$G($c)",
 			}
 		}
 
 		if isStruct || isObject || isInterface {
 			var isGPointer bool
-			if cType.CgoNotation() == "C.gpointer" {
+			cTypeCgoNotation := cType.CgoNotation()
+			if cTypeCgoNotation == "C.gpointer" || cTypeCgoNotation == "C.gconstpointer" {
 				isGPointer = true
 			}
 
 			if cType.NumStar != 1 && !isGPointer {
-				panic("assert failed cType.NumStr == 1, ctype is " + cType.CgoNotation())
+				panic("assert failed cType.NumStr == 1, ctype is " + cTypeCgoNotation)
 			}
 
 			var typeForGo string
@@ -110,7 +112,7 @@ func getBridge(typeName string, cType *gi.CType) *CGoBridge {
 					fmt.Sprintf("/*gir:%s*/", ns)
 			}
 			if isGPointer {
-				exprForC = fmt.Sprintf("C.gpointer(%s)", exprForC)
+				exprForC = fmt.Sprintf("%s(%s)", cTypeCgoNotation, exprForC)
 			}
 
 			return &CGoBridge{
