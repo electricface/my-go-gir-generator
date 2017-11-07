@@ -40,8 +40,8 @@ func newParamTemplate(param *gi.Parameter) ParamTemplate {
 // direction = in
 func newInParamTemplate(param *gi.Parameter) *InParamTemplate {
 	tpl := new(InParamTemplate)
+	tpl.varForGo = getParamName(param.Name)
 	tpl.varForC = param.Name + "0"
-	tpl.varForGo = param.Name
 
 	// param.Type -> bridge
 	cType, err := gi.ParseCType(param.Type.CType)
@@ -122,7 +122,7 @@ func newInArrayParamTemplate(param *gi.Parameter) *InArrayParamTemplate {
 	array := param.Array
 	tpl := new(InArrayParamTemplate)
 	tpl.varForC = param.Name + "0"
-	tpl.varForGo = param.Name
+	tpl.varForGo = getParamName(param.Name)
 	tpl.array = array
 
 	arrayCType, err := gi.ParseCType(array.CType)
@@ -199,7 +199,7 @@ type OutParamTemplate struct {
 func newOutParamTemplate(param *gi.Parameter) *OutParamTemplate {
 	tpl := new(OutParamTemplate)
 	tpl.varForC = param.Name + "0"
-	tpl.varForGo = param.Name
+	tpl.varForGo = getParamName(param.Name)
 
 	// param.Type -> bridge
 	cType, err := gi.ParseCType(param.Type.CType)

@@ -16,6 +16,22 @@ var goKeywords = []string{
 	"continue", "for", "import", "return", "var",
 }
 
+var goKeywordMap map[string]struct{}
+
+func init() {
+	goKeywordMap = make(map[string]struct{})
+	for _, kw := range goKeywords {
+		goKeywordMap[kw] = struct{}{}
+	}
+}
+
+func getParamName(in string) string {
+	if _, ok := goKeywordMap[in]; ok {
+		return in + "_"
+	}
+	return in
+}
+
 func getVarTypeForGo(tpl ParamTemplate) string {
 	return tpl.VarForGo() + " " + tpl.TypeForGo()
 }
