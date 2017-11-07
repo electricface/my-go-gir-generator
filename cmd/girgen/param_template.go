@@ -255,7 +255,7 @@ func (tpl *OutParamTemplate) pBeforeCall(s *SourceFile) {
 func (tpl *OutParamTemplate) pAfterCall(s *SourceFile) {
 
 	if tpl.bridge.CvtC2Go != "" {
-		s.GoBody.Pn("%s", tpl.replace(tpl.bridge.CvtC2Go))
+		s.GoBody.Pn("%s := %s", tpl.varForGo, tpl.replace(tpl.bridge.CvtC2Go))
 	}
 
 	if tpl.bridge.CvtC2Go != "" && tpl.bridge.CleanCvtC2Go != "" {
