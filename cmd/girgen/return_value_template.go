@@ -44,9 +44,9 @@ func newSimpleReturnValueTemplate(param *gi.Parameter) *SimpleReturnValueTemplat
 	if err != nil {
 		panic(err)
 	}
-	tpl.bridge = getBridge(param.Type.Name, cType)
-	if tpl.bridge == nil {
-		panic(fmt.Errorf("fail to get bridge for type %s,%s", cType.CgoNotation(), param.Type.Name))
+	tpl.bridge, err = getBridge(param.Type.Name, cType)
+	if err != nil {
+		panic(err)
 	}
 	return tpl
 }
@@ -109,7 +109,10 @@ func newArrayReturnValueTemplate(param *gi.Parameter) *ArrayReturnValueTemplate 
 	elemCType := arrayCType.Elem()
 	tpl.elemCType = elemCType
 
-	tpl.bridge = getBridge(array.ElemType.Name, elemCType)
+	tpl.bridge, err = getBridge(array.ElemType.Name, elemCType)
+	if err != nil {
+		panic(err)
+	}
 	return tpl
 }
 

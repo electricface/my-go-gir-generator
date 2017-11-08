@@ -51,7 +51,7 @@ func isSameNamespace(ns string) bool {
 	return ns == repo.Namespace.Name
 }
 
-func getBridge(typeName string, cType *gi.CType) *CGoBridge {
+func getBridge(typeName string, cType *gi.CType) (*CGoBridge, error) {
 	typeDef, ns := repo.GetType(typeName)
 	sameNs := isSameNamespace(ns)
 	nsLower := strings.ToLower(ns)
@@ -75,10 +75,9 @@ func getBridge(typeName string, cType *gi.CType) *CGoBridge {
 				TypeForGo: typeForGo,
 				TypeForC:  typeDef.CType().CgoNotation(),
 
-				ExprForC: "$C($g)",
-
+				ExprForC:  "$C($g)",
 				ExprForGo: "$G($c)",
-			}
+			}, nil
 		}
 
 		if isStruct || isObject || isInterface {
@@ -123,7 +122,7 @@ func getBridge(typeName string, cType *gi.CType) *CGoBridge {
 				ExprForC:     exprForC,
 				ExprForGo:    exprForGo,
 				ErrExprForGo: typeForGo + "{}",
-			}
+			}, nil
 		}
 	}
 
@@ -131,16 +130,15 @@ func getBridge(typeName string, cType *gi.CType) *CGoBridge {
 
 	br := getBridgeForIntegerType(typeForC)
 	if br != nil {
-		return br
+		return br, nil
 	}
 
 	key := typeForC + "," + typeName
 	br = cGoBridgeMap[key]
-
-	if br == nil {
-		panic(fmt.Errorf("failed to get bridge for %s,%s", cType.CgoNotation(), typeName))
+	if br != nil {
+		return br, nil
 	}
-	return br
+	return nil, fmt.Errorf("failed to get bridge for %s", key)
 }
 
 var cGoBridgeMap = map[string]*CGoBridge{

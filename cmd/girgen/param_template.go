@@ -48,9 +48,9 @@ func newInParamTemplate(param *gi.Parameter) *InParamTemplate {
 	if err != nil {
 		panic(err)
 	}
-	tpl.bridge = getBridge(param.Type.Name, cType)
-	if tpl.bridge == nil {
-		panic(fmt.Errorf("fail to get bridge for type %s,%s", cType.CgoNotation(), param.Type.Name))
+	tpl.bridge, err = getBridge(param.Type.Name, cType)
+	if err != nil {
+		panic(err)
 	}
 
 	if param.LengthForParameter != nil {
@@ -142,7 +142,10 @@ func newInArrayParamTemplate(param *gi.Parameter) *InArrayParamTemplate {
 		elemCType = arrayCType.Elem()
 	}
 	tpl.elemCType = elemCType
-	tpl.bridge = getBridge(array.ElemType.Name, elemCType)
+	tpl.bridge, err = getBridge(array.ElemType.Name, elemCType)
+	if err != nil {
+		panic(err)
+	}
 	return tpl
 }
 
@@ -219,10 +222,9 @@ func newOutParamTemplate(param *gi.Parameter) *OutParamTemplate {
 
 	realCType := cType.Elem()
 
-	tpl.bridge = getBridge(param.Type.Name, realCType)
-	if tpl.bridge == nil {
-		panic(fmt.Errorf("fail to get bridge for type %s,%s",
-			realCType.CgoNotation(), param.Type.Name))
+	tpl.bridge, err = getBridge(param.Type.Name, realCType)
+	if err != nil {
+		panic(err)
 	}
 	return tpl
 }

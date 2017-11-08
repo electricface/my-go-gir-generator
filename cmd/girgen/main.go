@@ -108,8 +108,16 @@ func getSourceFile(repo *gi.Repository, pkg string) *SourceFile {
 }
 
 func pAlias(s *SourceFile, alias *gi.AliasInfo) {
-	cType := alias.CType()
-	s.GoBody.Pn("type %s %s", alias.Name(), cType.CgoNotation())
+	sourceType := alias.SourceType
+	sourceTypeCType, err := gi.ParseCType(sourceType.CType)
+	if err != nil {
+		panic(err)
+	}
+	br, err := getBridge(sourceType.Name, sourceTypeCType)
+	if err != nil {
+		return
+	}
+	s.GoBody.Pn("type %s %s", alias.Name(), br.TypeForGo)
 }
 
 func pEnum(s *SourceFile, enum *gi.EnumInfo) {
