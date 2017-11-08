@@ -68,7 +68,7 @@ func getBridge(typeName string, cType *gi.CType) *CGoBridge {
 			if sameNs {
 				typeForGo = typeDef.Name()
 			} else {
-				typeForGo = nsLower + "." + typeDef.Name()
+				typeForGo = fmt.Sprintf("/*gir:%s*/", ns) + nsLower + "." + typeDef.Name()
 			}
 
 			return &CGoBridge{
