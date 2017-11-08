@@ -314,9 +314,16 @@ func pInterface(s *SourceFile, ifc *gi.InterfaceInfo, funcs []string) {
 	s.GoBody.Pn("}")
 
 	// methods
-	for _, method := range ifc.Methods {
-		if strSliceContains(funcs, method.CIdentifier) {
-			pFunction(s, method)
+	for _, fn := range ifc.Methods {
+		if strSliceContains(funcs, fn.CIdentifier) {
+			pFunction(s, fn)
+		}
+	}
+
+	// functions
+	for _, fn := range ifc.Functions {
+		if strSliceContains(funcs, fn.CIdentifier) {
+			pFunction(s, fn)
 		}
 	}
 }

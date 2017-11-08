@@ -16,6 +16,10 @@ type ReturnValueTemplate interface {
 
 func newReturnValueTemplate(param *gi.Parameter) ReturnValueTemplate {
 	if param.Type != nil {
+
+		if param.Type.ElemType != nil {
+			return newGListReturnValueTemplate(param)
+		}
 		return newSimpleReturnValueTemplate(param)
 	}
 	if param.Array != nil {
@@ -91,6 +95,76 @@ type ArrayReturnValueTemplate struct {
 	array             *gi.ArrayType
 	elemCType         *gi.CType
 	transferOwnership string
+}
+
+type GListReturnValueTemplate struct {
+	varForGo string
+	varForC  string
+	bridge   *CGoBridge
+	sameNs   bool
+
+	elemType string
+	elemNs   string
+}
+
+func (tpl *GListReturnValueTemplate) TypeForGo() string {
+	if tpl.sameNs {
+		return "List"
+	}
+	return "glib.List"
+}
+
+func (*GListReturnValueTemplate) pAfterCall(s *SourceFile) {
+}
+
+func (tpl *GListReturnValueTemplate) ExprForGo() string {
+	var exprForGo string
+	if tpl.sameNs {
+		exprForGo = "WrapList(unsafe.Pointer(%s), \n%s)"
+	} else {
+		exprForGo = "glib.WrapList(unsafe.Pointer(%s), \n%s) /*gir:GLib*/"
+	}
+
+	var expr string
+	elemSameNs := isSameNamespace(tpl.elemNs)
+	if elemSameNs {
+		expr = fmt.Sprintf("Wrap%s(p)", tpl.elemType)
+	} else {
+		expr = fmt.Sprintf("%s.Wrap%s(p) /*gir:%s*/", strings.ToLower(tpl.elemNs), tpl.elemType, tpl.elemNs)
+	}
+
+	dataWrapFunc := fmt.Sprintf("func (p unsafe.Pointer) interface{} { return %s }", expr)
+	return fmt.Sprintf(exprForGo, tpl.varForC, dataWrapFunc)
+}
+
+func (tpl *GListReturnValueTemplate) ErrExprForGo() string {
+	return tpl.TypeForGo() + "{}"
+}
+
+func newGListReturnValueTemplate(param *gi.Parameter) *GListReturnValueTemplate {
+	tpl := new(GListReturnValueTemplate)
+	tpl.varForGo = param.Name
+	tpl.varForC = param.Name + "0"
+
+	typeDef, ns := repo.GetType(param.Type.Name)
+	if typeDef == nil {
+		panic("failed to get type " + param.Type.Name)
+	}
+	tpl.sameNs = isSameNamespace(ns)
+
+	if typeDef.Name() != "List" || ns != "GLib" {
+		panic("type is not glib.List")
+	}
+
+	tpl.elemType = param.Type.ElemType.Name
+
+	elemTypeDef, elemNs := repo.GetType(tpl.elemType)
+	if elemTypeDef == nil {
+		panic("failed to get type " + tpl.elemType)
+	}
+	tpl.elemNs = elemNs
+
+	return tpl
 }
 
 func newArrayReturnValueTemplate(param *gi.Parameter) *ArrayReturnValueTemplate {

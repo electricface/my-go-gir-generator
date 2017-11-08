@@ -322,14 +322,9 @@ type AliasInfo struct {
 }
 
 type Type struct {
-	Name    string   `xml:"name,attr"`
-	CType   string   `xml:"type,attr"`
-	SubType *SubType `xml:"type"`
-}
-
-type SubType struct {
-	Name  string `xml:"name,attr"`
-	CType string `xml:"type,attr"`
+	Name     string `xml:"name,attr"`
+	CType    string `xml:"type,attr"`
+	ElemType *Type  `xml:"type"`
 }
 
 type FunctionInfo struct {
@@ -346,8 +341,6 @@ type FunctionInfo struct {
 
 type CallbackInfo struct {
 	BaseInfo
-	//Name        string      `xml:"name,attr"`
-	//CType       string      `xml:"type,attr"`
 	ReturnValue *Parameter  `xml:"return-value"`
 	Parameters  *Parameters `xml:"parameters"`
 }
@@ -408,10 +401,6 @@ type Parameter struct {
 func (p *Parameter) IsArray() bool {
 	return p.Array != nil
 }
-
-//<array length="1" zero-terminated="0" c:type="GFile**">
-//<type name="File" c:type="GFile*"/>
-//</array>
 
 type ArrayType struct {
 	Name           string         `xml:"name,attr"`
