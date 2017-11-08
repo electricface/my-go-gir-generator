@@ -281,6 +281,15 @@ var cGoBridgeMap = map[string]*CGoBridge{
 		ErrExprForGo: "0",
 	},
 
+	"C.goffset,gint64": {
+		TypeForGo: "int64",
+		TypeForC:  "C.goffset",
+
+		ExprForC:     "$C($g)",
+		ExprForGo:    "$G($c)",
+		ErrExprForGo: "0",
+	},
+
 	"C.gchar,guint8": {
 		TypeForGo: "byte",
 		TypeForC:  "C.gchar",
