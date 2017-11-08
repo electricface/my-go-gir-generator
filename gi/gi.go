@@ -300,9 +300,11 @@ type Namespace struct {
 }
 
 type BaseInfo struct {
-	NameAttr  string `xml:"name,attr"`
-	CTypeAttr string `xml:"type,attr"` // c:type attr
-	cType     *CType
+	NameAttr          string `xml:"name,attr"`
+	CTypeAttr         string `xml:"type,attr"` // c:type attr
+	Deprecated        bool   `xml:"deprecated,attr"`
+	DeprecatedVersion string `xml:"deprecated-version,attr"`
+	cType             *CType
 }
 
 func (b *BaseInfo) Name() string {

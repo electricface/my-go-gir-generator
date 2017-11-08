@@ -127,6 +127,14 @@ loop:
 			break
 		}
 
+		funcInfo := getFuncInfo(typeDef, nextFunc)
+		if funcInfo.Deprecated {
+			log.Printf("add deprecated %s to ignore_funcs", nextFunc)
+			typeCfg.IgnoreFuncs = append(typeCfg.IgnoreFuncs, nextFunc)
+			saveCfg(cfgFile, cfg)
+			continue
+		}
+
 		typeCfg.Funcs = append(typeCfg.Funcs, nextFunc)
 
 		// backup
@@ -212,6 +220,76 @@ func getNextFunc(typeDef gi.TypeDefine, funcMap map[string]int) string {
 	default:
 		panic(fmt.Errorf("unsupported type %T", typeDef))
 	}
+}
+
+func getFuncInfo(typeDef gi.TypeDefine, funcName string) *gi.FunctionInfo {
+	switch td := typeDef.(type) {
+	case *gi.StructInfo:
+		return getStructFuncInfo(td, funcName)
+	case *gi.InterfaceInfo:
+		return getInterfaceFuncInfo(td, funcName)
+	case *gi.ObjectInfo:
+		return getObjectFuncInfo(td, funcName)
+	default:
+		panic(fmt.Errorf("unsupported type %T", typeDef))
+	}
+}
+
+func getStructFuncInfo(st *gi.StructInfo, funcName string) *gi.FunctionInfo {
+	for _, fn := range st.Constructors {
+		if fn.CIdentifier == funcName {
+			return fn
+		}
+	}
+
+	for _, fn := range st.Methods {
+		if fn.CIdentifier == funcName {
+			return fn
+		}
+	}
+
+	for _, fn := range st.Functions {
+		if fn.CIdentifier == funcName {
+			return fn
+		}
+	}
+	return nil
+}
+
+func getObjectFuncInfo(obj *gi.ObjectInfo, funcName string) *gi.FunctionInfo {
+	for _, fn := range obj.Constructors {
+		if fn.CIdentifier == funcName {
+			return fn
+		}
+	}
+
+	for _, fn := range obj.Methods {
+		if fn.CIdentifier == funcName {
+			return fn
+		}
+	}
+
+	for _, fn := range obj.Functions {
+		if fn.CIdentifier == funcName {
+			return fn
+		}
+	}
+	return nil
+}
+
+func getInterfaceFuncInfo(ifc *gi.InterfaceInfo, funcName string) *gi.FunctionInfo {
+	for _, fn := range ifc.Methods {
+		if fn.CIdentifier == funcName {
+			return fn
+		}
+	}
+
+	for _, fn := range ifc.Functions {
+		if fn.CIdentifier == funcName {
+			return fn
+		}
+	}
+	return nil
 }
 
 func getStructNextFunc(st *gi.StructInfo, funcMap map[string]int) string {

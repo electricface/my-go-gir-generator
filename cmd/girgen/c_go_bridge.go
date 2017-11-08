@@ -199,6 +199,15 @@ var cGoBridgeMap = map[string]*CGoBridge{
 		ErrExprForGo: "0.0",
 	},
 
+	"C.glong,glong": {
+		TypeForGo: "int",
+		TypeForC:  "C.glong",
+
+		ExprForC:     "$C($g)",
+		ExprForGo:    "$G($c)",
+		ErrExprForGo: "0",
+	},
+
 	"C.gpointer,gpointer": {
 		TypeForGo: "unsafe.Pointer",
 		TypeForC:  "C.gpointer",
