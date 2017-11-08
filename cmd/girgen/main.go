@@ -74,6 +74,11 @@ func main() {
 		}
 	}
 
+	// alias
+	for _, alias := range repo.Namespace.Aliases {
+		pAlias(sourceFile, alias)
+	}
+
 	// enums
 	for _, enum := range repo.Namespace.Enums {
 		pEnum(sourceFile, enum)
@@ -100,6 +105,11 @@ func getSourceFile(repo *gi.Repository, pkg string) *SourceFile {
 		sourceFile.AddCInclude("<" + cInc.Name + ">")
 	}
 	return sourceFile
+}
+
+func pAlias(s *SourceFile, alias *gi.AliasInfo) {
+	cType := alias.CType()
+	s.GoBody.Pn("type %s %s", alias.Name(), cType.CgoNotation())
 }
 
 func pEnum(s *SourceFile, enum *gi.EnumInfo) {
