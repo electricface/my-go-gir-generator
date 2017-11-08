@@ -35,10 +35,11 @@ func getBridgeForIntegerType(cgoType string) *CGoBridge {
 		typeForGo := strings.TrimPrefix(typ, "g")
 
 		return &CGoBridge{
-			TypeForGo: typeForGo,
-			TypeForC:  cgoType,
-			ExprForC:  "$C($g)",
-			ExprForGo: "$G($c)",
+			TypeForGo:    typeForGo,
+			TypeForC:     cgoType,
+			ExprForC:     "$C($g)",
+			ExprForGo:    "$G($c)",
+			ErrExprForGo: "0",
 		}
 
 	default:
@@ -202,6 +203,24 @@ var cGoBridgeMap = map[string]*CGoBridge{
 	"C.glong,glong": {
 		TypeForGo: "int",
 		TypeForC:  "C.glong",
+
+		ExprForC:     "$C($g)",
+		ExprForGo:    "$G($c)",
+		ErrExprForGo: "0",
+	},
+
+	"C.guchar,guchar": {
+		TypeForGo: "byte",
+		TypeForC:  "C.guchar",
+
+		ExprForC:     "$C($g)",
+		ExprForGo:    "$G($c)",
+		ErrExprForGo: "0",
+	},
+
+	"C.gchar,gchar": {
+		TypeForGo: "int8",
+		TypeForC:  "C.gchar",
 
 		ExprForC:     "$C($g)",
 		ExprForGo:    "$G($c)",

@@ -168,8 +168,12 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 	}
 
 	if fn.Throws {
-		s.AddGirImport("GLib")
-		s.GoBody.Pn("var err glib.Error")
+		if repo.Namespace.Name == "GLib" {
+			s.GoBody.Pn("var err Error")
+		} else {
+			s.AddGirImport("GLib")
+			s.GoBody.Pn("var err glib.Error")
+		}
 	}
 
 	for _, paramTpl := range paramTpls {
