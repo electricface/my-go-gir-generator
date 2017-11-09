@@ -193,6 +193,44 @@ func pStruct(s *SourceFile, struct0 *gi.StructInfo, funcs []string) {
 	}
 }
 
+func pMethodGetType(s *SourceFile, name, glibGetType string) {
+	if glibGetType == "intern" || glibGetType == "" {
+		return
+	}
+
+	if isSameNamespace("GObject") {
+		s.GoBody.Pn("func (v %s) GetType() Type {", name)
+		s.GoBody.Pn("return Type(C.%s())", glibGetType)
+		s.GoBody.Pn("}")
+
+	} else {
+		s.AddGirImport("GObject")
+		s.GoBody.Pn("func (v %s) GetType() gobject.Type {", name)
+		s.GoBody.Pn("return gobject.Type(C.%s())", glibGetType)
+		s.GoBody.Pn("}")
+	}
+}
+
+func pMethodGetGValueGetter(s *SourceFile, name string) {
+
+	if isSameNamespace("GObject") {
+		s.GoBody.Pn("func (v %s) GetGValueGetter() GValueGetter {", name)
+		s.GoBody.Pn("return func(p unsafe.Pointer) (interface{}, error) {")
+		s.GoBody.Pn("    ptr := C.g_value_get_object( (*C.GValue)(p) )")
+		s.GoBody.Pn("    return Wrap%s( unsafe.Pointer(ptr) ),nil", name)
+		s.GoBody.Pn("    }")
+		s.GoBody.Pn("}")
+	} else {
+		s.AddGirImport("GObject")
+		s.GoBody.Pn("func (v %s) GetGValueGetter() gobject.GValueGetter {", name)
+		s.GoBody.Pn("return func(p unsafe.Pointer) (interface{}, error) {")
+		s.GoBody.Pn("    ptr := C.g_value_get_object((*C.GValue)(p))")
+		s.GoBody.Pn("    return Wrap%s( unsafe.Pointer(ptr) ),nil", name)
+		s.GoBody.Pn("    }")
+		s.GoBody.Pn("}")
+	}
+}
+
 func pObject(s *SourceFile, object *gi.ObjectInfo, funcs []string) {
 	s.AddGoImport("unsafe")
 	name := object.Name()
@@ -243,6 +281,9 @@ func pObject(s *SourceFile, object *gi.ObjectInfo, funcs []string) {
 	s.GoBody.Pn("v.Ptr = p")
 	s.GoBody.Pn("return")
 	s.GoBody.Pn("}")
+
+	pMethodGetType(s, name, object.GlibGetType)
+	pMethodGetGValueGetter(s, name)
 
 	for _, ifc0 := range object.ImplementedInterfaces() {
 		ifc, ifcNS := repo.GetType(ifc0)
@@ -316,6 +357,9 @@ func pInterface(s *SourceFile, ifc *gi.InterfaceInfo, funcs []string) {
 	s.GoBody.Pn("func Wrap%s(p unsafe.Pointer) %s {", name, name)
 	s.GoBody.Pn("return %s{p}", name)
 	s.GoBody.Pn("}")
+
+	pMethodGetType(s, name, ifc.GlibGetType)
+	pMethodGetGValueGetter(s, name)
 
 	// methods
 	for _, fn := range ifc.Methods {
