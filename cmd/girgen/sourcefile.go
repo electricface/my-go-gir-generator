@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/electricface/my-go-gir-generator/gi"
@@ -74,6 +75,7 @@ func (v *SourceFile) WriteTo(w io.Writer) {
 			io.WriteString(w, str)
 		}
 
+		sort.Strings(v.CIncludes)
 		for _, inc := range v.CIncludes {
 			io.WriteString(w, "#include "+inc+"\n")
 		}
@@ -84,6 +86,7 @@ func (v *SourceFile) WriteTo(w io.Writer) {
 		io.WriteString(w, "import \"C\"\n")
 	}
 
+	sort.Strings(v.GoImports)
 	for _, imp := range v.GoImports {
 		io.WriteString(w, "import "+imp+"\n")
 	}
