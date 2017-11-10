@@ -343,8 +343,8 @@ func pContainerMethods(s *SourceFile, typeDef gi.TypeDefine) {
 	s.GoBody.Pn("    return v.Ptr == nil")
 	s.GoBody.Pn("}")
 
-	// method WrapXXXFunc
-	s.GoBody.Pn("func Wrap%sFunc(p unsafe.Pointer) interface{} {", name)
+	// method IWrapXXX
+	s.GoBody.Pn("func IWrap%s(p unsafe.Pointer) interface{} {", name)
 	s.GoBody.Pn(" return Wrap%s(p)", name)
 	s.GoBody.Pn("}")
 }
