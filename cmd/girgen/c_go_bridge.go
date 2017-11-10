@@ -62,6 +62,7 @@ func getBridge(typeName string, cType *gi.CType) (*CGoBridge, error) {
 		_, isObject := typeDef.(*gi.ObjectInfo)
 		_, isInterface := typeDef.(*gi.InterfaceInfo)
 		_, isAlias := typeDef.(*gi.AliasInfo)
+		_, isCallback := typeDef.(*gi.CallbackInfo)
 
 		if isEnum || isAlias {
 			var typeForGo string
@@ -122,6 +123,33 @@ func getBridge(typeName string, cType *gi.CType) (*CGoBridge, error) {
 				ExprForC:     exprForC,
 				ExprForGo:    exprForGo,
 				ErrExprForGo: typeForGo + "{}",
+			}, nil
+		}
+
+		if isCallback {
+			var typeForGo string
+			if sameNs {
+				typeForGo = typeDef.Name()
+
+			} else {
+				typeForGo = nsLower + "." + typeDef.Name()
+			}
+
+			var cvtGo2C string
+			if isSameNamespace("GObject") {
+				cvtGo2C = "($C)(ClosureNew($g).Ptr)"
+			} else {
+				cvtGo2C = "($C)(gobject.ClosureNew($g).Ptr) /*gir:GObject*/"
+			}
+
+			return &CGoBridge{
+				TypeForGo: typeForGo,
+				TypeForC:  "*C.GClosure",
+
+				CvtGo2C:      cvtGo2C,
+				ExprForC:     "$c",
+				ExprForGo:    "",
+				ErrExprForGo: "",
 			}, nil
 		}
 	}

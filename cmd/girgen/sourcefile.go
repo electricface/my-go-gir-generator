@@ -19,6 +19,7 @@ type SourceFile struct {
 	Pkg       string
 	CPkgs     []string
 	CIncludes []string
+	CHeader   *SourceBody
 	CBody     *SourceBody
 
 	GoImports []string
@@ -29,8 +30,9 @@ func NewSourceFile(pkg string) *SourceFile {
 	sf := &SourceFile{
 		Pkg: pkg,
 
-		CBody:  &SourceBody{},
-		GoBody: &SourceBody{},
+		CHeader: &SourceBody{},
+		CBody:   &SourceBody{},
+		GoBody:  &SourceBody{},
 	}
 
 	sf.CBody.sourceFile = sf
@@ -67,6 +69,7 @@ func (v *SourceFile) WriteTo(w io.Writer) {
 
 	if len(v.CPkgs) > 0 ||
 		len(v.CIncludes) > 0 ||
+		len(v.CHeader.buf.Bytes()) > 0 ||
 		len(v.CBody.buf.Bytes()) > 0 {
 
 		io.WriteString(w, "/*\n")
@@ -80,6 +83,7 @@ func (v *SourceFile) WriteTo(w io.Writer) {
 			io.WriteString(w, "#include "+inc+"\n")
 		}
 
+		w.Write(v.CHeader.buf.Bytes())
 		w.Write(v.CBody.buf.Bytes())
 
 		io.WriteString(w, "*/\n")

@@ -10,6 +10,7 @@ type PackageConfig struct {
 	Version   string        `toml:"version"`
 	Types     []*TypeConfig `toml:"types"`
 	Funcs     []string      `toml:"funcs"`
+	Callbacks []string      `toml:"callbacks"`
 }
 
 type TypeConfig struct {

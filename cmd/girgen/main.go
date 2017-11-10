@@ -53,6 +53,12 @@ func main() {
 		sourceFile.AddGirImport(coreInc.Name)
 	}
 
+	for _, callback := range repo.Namespace.Callbacks {
+		if strSliceContains(cfg.Callbacks, callback.Name()) {
+			pCallback(sourceFile, callback)
+		}
+	}
+
 	for _, genTypeCfg := range cfg.Types {
 		typeDef, ns := repo.GetType(genTypeCfg.Name)
 		if typeDef == nil {
@@ -121,6 +127,13 @@ func pAlias(s *SourceFile, alias *gi.AliasInfo) {
 	if err != nil {
 		return
 	}
+
+	// TODO:
+	if strings.HasSuffix(alias.Name(), "Marshaller") {
+		// ignore SignalCMarshaller and SignalCVaMarshaller
+		return
+	}
+
 	s.GoBody.Pn("type %s %s", alias.Name(), br.TypeForGo)
 }
 

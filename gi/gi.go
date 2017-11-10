@@ -206,6 +206,21 @@ func (r *Repository) postDecode() {
 
 		r.typeMap[alias.NameAttr] = alias
 	}
+
+	for _, callback := range ns.Callbacks {
+		callback.cType, err = ParseCType(callback.CTypeAttr)
+		if err != nil {
+			panic(&ParseCTypeError{
+				err:        err,
+				typeDefine: callback,
+			})
+		}
+
+		if _, ok := r.typeMap[callback.NameAttr]; ok {
+			panic("duplicate type " + callback.NameAttr)
+		}
+		r.typeMap[callback.NameAttr] = callback
+	}
 	fmt.Println("// finish type register", r.Namespace.Name, r.Namespace.Version)
 }
 
@@ -386,16 +401,35 @@ type Parameters struct {
 }
 
 type Parameter struct {
-	Name               string     `xml:"name,attr"`
-	TransferOwnership  string     `xml:"transfer-ownership,attr"`
-	Direction          string     `xml:"direction,attr"`
-	CallerAllocates    bool       `xml:"caller-allocates,attr"`
-	Optional           bool       `xml:"optional,attr"`
-	Nullable           bool       `xml:"nullable,attr"`
-	AllowNone          bool       `xml:"allow-none,attr"`
-	Type               *Type      `xml:"type"`
-	Array              *ArrayType `xml:"array"`
-	LengthForParameter *Parameter
+	Name                    string     `xml:"name,attr"`
+	TransferOwnership       string     `xml:"transfer-ownership,attr"`
+	Direction               string     `xml:"direction,attr"`
+	CallerAllocates         bool       `xml:"caller-allocates,attr"`
+	Optional                bool       `xml:"optional,attr"`
+	Nullable                bool       `xml:"nullable,attr"`
+	AllowNone               bool       `xml:"allow-none,attr"`
+	Type                    *Type      `xml:"type"`
+	Array                   *ArrayType `xml:"array"`
+	LengthForParameter      *Parameter
+	ClosureForCallbackParam *Parameter
+
+	Scope        string `xml:"scope,attr"`
+	ClosureIndex int    `xml:"closure,attr"`
+	DestroyIndex int    `xml:"destroy,attr"`
+}
+
+// set ClosureIndex and DestroyIndex default value to -1
+func (p *Parameter) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	type parameter0 Parameter
+	a := parameter0{
+		ClosureIndex: -1,
+		DestroyIndex: -1,
+	}
+	if err := d.DecodeElement(&a, &start); err != nil {
+		return err
+	}
+	*p = Parameter(a)
+	return nil
 }
 
 func (p *Parameter) IsArray() bool {
@@ -428,7 +462,7 @@ func (arr *ArrayType) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error
 	if err := d.DecodeElement(&a, &start); err != nil {
 		return err
 	}
-	*arr = (ArrayType)(a)
+	*arr = ArrayType(a)
 	return nil
 }
 

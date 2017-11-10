@@ -73,6 +73,92 @@ func markLength(fn *gi.FunctionInfo) {
 	}
 }
 
+func markClosure(fn *gi.FunctionInfo) {
+	params := fn.Parameters
+	if params != nil {
+		for _, param := range params.Parameters {
+			if param.ClosureIndex >= 0 {
+				params.Parameters[param.ClosureIndex].ClosureForCallbackParam = param
+			}
+		}
+	}
+}
+
+func getCFuncArg(p *gi.Parameter) string {
+	return p.Type.CType + " " + p.Name
+}
+
+func pFunctionWrapper(s *SourceFile, fn *gi.FunctionInfo) {
+	returnType := fn.ReturnValue.Type.CType
+	instanceParam := fn.Parameters.InstanceParameter
+
+	var typeArgs []string
+
+	if instanceParam != nil {
+		typeArgs = append(typeArgs, getCFuncArg(instanceParam))
+	}
+
+	// typeArgs 中省略 user data, 将 callback 的类型换成 GClosure*
+	// args 中 callback 设置成对应的 CallbackWrapper， user_data 设置成 user_data_for_callback
+	// 这样就能和 pFunction 中的实现保持一致了。
+
+	// loop for argsTypes
+	for _, param := range fn.Parameters.Parameters {
+		if param.ClosureForCallbackParam == nil {
+			if param.ClosureIndex >= 0 {
+				// param is callback
+				closureParam := fn.Parameters.Parameters[param.ClosureIndex]
+				arg := closureParam.Name + "_for_" + param.Name
+				typeArgs = append(typeArgs, "GClosure* "+arg)
+			} else {
+				// common
+				typeArgs = append(typeArgs, getCFuncArg(param))
+			}
+
+		} else {
+			// param is user data for callback
+			// 省略
+		}
+	}
+
+	if fn.Throws {
+		typeArgs = append(typeArgs, "GError **error")
+	}
+
+	argTypesJoined := strings.Join(typeArgs, ", ")
+	s.CBody.Pn("static %s _%s(%s) {", returnType, fn.CIdentifier, argTypesJoined)
+
+	var args []string
+	if instanceParam != nil {
+		args = append(args, instanceParam.Name)
+	}
+	// loop for args
+	for _, param := range fn.Parameters.Parameters {
+		if param.ClosureForCallbackParam == nil {
+			if param.ClosureIndex >= 0 {
+				// param is callback
+				args = append(args, param.Type.Name+"Wrapper")
+			} else {
+				// common
+				args = append(args, param.Name)
+			}
+		} else {
+			// param is user data for callback
+			arg := param.Name + "_for_" + param.ClosureForCallbackParam.Name
+			args = append(args, arg)
+		}
+	}
+
+	if fn.Throws {
+		args = append(args, "error")
+	}
+
+	argsJoined := strings.Join(args, ", ")
+	s.CBody.Pn("    return %s(%s);", fn.CIdentifier, argsJoined)
+
+	s.CBody.Pn("}")
+}
+
 func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -81,6 +167,7 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 		}
 	}()
 	markLength(fn)
+	markClosure(fn)
 	s.GoBody.Pn("// %s is a wrapper around %s().", fn.Name(), fn.CIdentifier)
 
 	var receiver string
@@ -105,6 +192,8 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 		errRetVals = append(errRetVals, retValTpl.ErrExprForGo())
 	}
 
+	var hasClosure bool
+
 	if fn.Parameters != nil {
 		instanceParam := fn.Parameters.InstanceParameter
 		if instanceParam != nil {
@@ -116,6 +205,11 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 		}
 
 		for _, param := range fn.Parameters.Parameters {
+			if param.ClosureForCallbackParam != nil {
+				hasClosure = true
+				continue
+			}
+
 			tpl := newParamTemplate(param)
 			if tpl == nil {
 				panic("newParamTemplate failed for param " + param.Name)
@@ -183,7 +277,11 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 		exprsInCall = append(exprsInCall, "(**C.GError)(unsafe.Pointer(&err))")
 	}
 
-	call := fmt.Sprintf("C.%s(%s)", fn.CIdentifier, strings.Join(exprsInCall, ", "))
+	funcName := fn.CIdentifier
+	if hasClosure {
+		funcName = "_" + funcName
+	}
+	call := fmt.Sprintf("C.%s(%s)", funcName, strings.Join(exprsInCall, ", "))
 	if retValTpl != nil {
 		s.GoBody.P("ret0 := ")
 	}
@@ -216,4 +314,8 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 		s.GoBody.Pn("return %s", retValsJoined)
 	}
 	s.GoBody.Pn("}") // end func
+
+	if hasClosure {
+		pFunctionWrapper(s, fn)
+	}
 }
