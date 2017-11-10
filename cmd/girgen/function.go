@@ -78,7 +78,16 @@ func markClosure(fn *gi.FunctionInfo) {
 	if params != nil {
 		for _, param := range params.Parameters {
 			if param.ClosureIndex >= 0 {
-				params.Parameters[param.ClosureIndex].ClosureForCallbackParam = param
+				typeDef, _ := repo.GetType(param.Type.Name)
+				if _, ok := typeDef.(*gi.CallbackInfo); ok {
+					// param type is callback
+					closureParam := params.Parameters[param.ClosureIndex]
+					closureParam.ClosureForCallbackParam = param
+					// assert closureParam type is gpointer
+					if closureParam.Type.Name != "gpointer" {
+						panic("assert failed closureParam.Type.Name == gpointer")
+					}
+				}
 			}
 		}
 	}
