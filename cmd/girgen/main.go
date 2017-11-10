@@ -164,26 +164,10 @@ func pStruct(s *SourceFile, struct0 *gi.StructInfo, funcs []string) {
 	s.GoBody.Pn("// Struct %s", name)
 
 	s.GoBody.Pn("type %s struct {", name)
-	s.GoBody.Pn("Ptr unsafe.Pointer")
+	s.GoBody.Pn("    Ptr unsafe.Pointer")
 	s.GoBody.Pn("}")
 
-	cPtrType := "*C." + struct0.CTypeAttr
-
-	// method native
-	s.GoBody.Pn("func (v %s) native() %s {", name, cPtrType)
-	s.GoBody.Pn("return (%s)(v.Ptr)", cPtrType)
-	s.GoBody.Pn("}")
-
-	// method wrapXXX
-	s.GoBody.Pn("func wrap%s(p %s) %s {", name, cPtrType, name)
-	s.GoBody.Pn("return %s{unsafe.Pointer(p)}", name)
-	s.GoBody.Pn("}")
-
-	// method WrapXXX
-	s.GoBody.Pn("func Wrap%s(p unsafe.Pointer) %s {", name, name)
-	s.GoBody.Pn("return %s{p}", name)
-	s.GoBody.Pn("}")
-
+	pContainerMethods(s, struct0)
 	// constructors
 	for _, fn := range struct0.Constructors {
 		if strSliceContains(funcs, fn.CIdentifier) {
@@ -255,6 +239,7 @@ func pObject(s *SourceFile, object *gi.ObjectInfo, funcs []string) {
 	}()
 	s.GoBody.Pn("// Object %s", name)
 
+	s.GoBody.Pn("type %s struct {", name)
 	if object.Parent != "" {
 		parent, parentNS := repo.GetType(object.Parent)
 		if parent == nil {
@@ -262,39 +247,19 @@ func pObject(s *SourceFile, object *gi.ObjectInfo, funcs []string) {
 		}
 
 		parentNSLower := strings.ToLower(parentNS)
-		s.GoBody.Pn("type %s struct {", name)
 		if isSameNamespace(parentNS) {
 			s.GoBody.Pn("%s", parent.Name())
 		} else {
 			s.AddGirImport(parentNS)
 			s.GoBody.Pn("%s.%s", parentNSLower, parent.Name())
 		}
-		s.GoBody.Pn("}")
 	} else {
-		s.GoBody.Pn("type %s struct {", name)
-		s.GoBody.Pn("Ptr unsafe.Pointer")
-		s.GoBody.Pn("}")
+		// no parent
+		s.GoBody.Pn("    Ptr unsafe.Pointer")
 	}
-
-	cPtrType := "*C." + object.CTypeAttr
-
-	// method native
-	s.GoBody.Pn("func (v %s) native() %s {", name, cPtrType)
-	s.GoBody.Pn("return (%s)(v.Ptr)", cPtrType)
 	s.GoBody.Pn("}")
 
-	// method wrapXXX
-	s.GoBody.Pn("func wrap%s(p %s) (v %s) {", name, cPtrType, name)
-	s.GoBody.Pn("v.Ptr = unsafe.Pointer(p)")
-	s.GoBody.Pn("return")
-	s.GoBody.Pn("}")
-
-	// method WrapXXX
-	s.GoBody.Pn("func Wrap%s(p unsafe.Pointer) (v %s) {", name, name)
-	s.GoBody.Pn("v.Ptr = p")
-	s.GoBody.Pn("return")
-	s.GoBody.Pn("}")
-
+	pContainerMethods(s, object)
 	pMethodGetType(s, name, object.GlibGetType)
 	pMethodGetGValueGetter(s, name)
 
@@ -339,6 +304,51 @@ func pObject(s *SourceFile, object *gi.ObjectInfo, funcs []string) {
 	}
 }
 
+func pContainerMethods(s *SourceFile, typeDef gi.TypeDefine) {
+	name := typeDef.Name()
+	cPtrType := "*" + typeDef.CType().CgoNotation()
+
+	// method native
+	s.GoBody.Pn("func (v %s) native() %s {", name, cPtrType)
+	s.GoBody.Pn("    return (%s)(v.Ptr)", cPtrType)
+	s.GoBody.Pn("}")
+
+	obj, isObj := typeDef.(*gi.ObjectInfo)
+	if isObj && obj.Parent != "" {
+		// method wrapXXX
+		s.GoBody.Pn("func wrap%s(p %s) (v %s) {", name, cPtrType, name)
+		s.GoBody.Pn("    v.Ptr = unsafe.Pointer(p)")
+		s.GoBody.Pn("    return")
+		s.GoBody.Pn("}")
+
+		// method WrapXXX
+		s.GoBody.Pn("func Wrap%s(p unsafe.Pointer) (v %s) {", name, name)
+		s.GoBody.Pn("    v.Ptr = p")
+		s.GoBody.Pn("    return")
+		s.GoBody.Pn("}")
+	} else {
+		// method wrapXXX
+		s.GoBody.Pn("func wrap%s(p %s) %s {", name, cPtrType, name)
+		s.GoBody.Pn("return %s{unsafe.Pointer(p)}", name)
+		s.GoBody.Pn("}")
+
+		// method WrapXXX
+		s.GoBody.Pn("func Wrap%s(p unsafe.Pointer) %s {", name, name)
+		s.GoBody.Pn("return %s{p}", name)
+		s.GoBody.Pn("}")
+	}
+
+	// method IsNil
+	s.GoBody.Pn("func (v %s) IsNil() bool {", name)
+	s.GoBody.Pn("    return v.Ptr == nil")
+	s.GoBody.Pn("}")
+
+	// method WrapXXXFunc
+	s.GoBody.Pn("func Wrap%sFunc(p unsafe.Pointer) interface{} {", name)
+	s.GoBody.Pn(" return Wrap%s(p)", name)
+	s.GoBody.Pn("}")
+}
+
 func pInterface(s *SourceFile, ifc *gi.InterfaceInfo, funcs []string) {
 	s.AddGoImport("unsafe")
 	name := ifc.Name()
@@ -351,26 +361,9 @@ func pInterface(s *SourceFile, ifc *gi.InterfaceInfo, funcs []string) {
 	s.GoBody.Pn("// Interface %s", name)
 
 	s.GoBody.Pn("type %s struct {", name)
-	s.GoBody.Pn("Ptr unsafe.Pointer")
+	s.GoBody.Pn("    Ptr unsafe.Pointer")
 	s.GoBody.Pn("}")
-
-	cPtrType := "*C." + ifc.CTypeAttr
-
-	// method native
-	s.GoBody.Pn("func (v %s) native() %s {", name, cPtrType)
-	s.GoBody.Pn("return (%s)(v.Ptr)", cPtrType)
-	s.GoBody.Pn("}")
-
-	// method wrapXXX
-	s.GoBody.Pn("func wrap%s(p %s) %s {", name, cPtrType, name)
-	s.GoBody.Pn("return %s{unsafe.Pointer(p)}", name)
-	s.GoBody.Pn("}")
-
-	// method WrapXXX
-	s.GoBody.Pn("func Wrap%s(p unsafe.Pointer) %s {", name, name)
-	s.GoBody.Pn("return %s{p}", name)
-	s.GoBody.Pn("}")
-
+	pContainerMethods(s, ifc)
 	pMethodGetType(s, name, ifc.GlibGetType)
 	pMethodGetGValueGetter(s, name)
 
