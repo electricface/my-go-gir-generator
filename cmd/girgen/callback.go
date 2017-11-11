@@ -89,6 +89,11 @@ func pCallbackWrapper(s *SourceFile, callback *gi.CallbackInfo) {
 
 	s.CBody.Pn("    g_closure_invoke(closure, NULL, %d, params, NULL);", paramCount)
 
+	if _, ok := asyncCallbackMap[name]; ok {
+		// is async callback
+		s.CBody.Pn("    g_closure_unref(closure);")
+	}
+
 	s.CBody.Pn("}")
 }
 

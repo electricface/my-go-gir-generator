@@ -73,6 +73,8 @@ func markLength(fn *gi.FunctionInfo) {
 	}
 }
 
+var asyncCallbackMap = make(map[string]struct{})
+
 func markClosure(fn *gi.FunctionInfo) {
 	params := fn.Parameters
 	if params != nil {
@@ -81,6 +83,10 @@ func markClosure(fn *gi.FunctionInfo) {
 				typeDef, _ := repo.GetType(param.Type.Name)
 				if _, ok := typeDef.(*gi.CallbackInfo); ok {
 					// param type is callback
+					if param.Scope == "async" {
+						asyncCallbackMap[typeDef.Name()] = struct{}{}
+					}
+
 					closureParam := params.Parameters[param.ClosureIndex]
 					closureParam.ClosureForCallbackParam = param
 					param.ClosureParam = closureParam

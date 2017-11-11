@@ -53,12 +53,6 @@ func main() {
 		sourceFile.AddGirImport(coreInc.Name)
 	}
 
-	for _, callback := range repo.Namespace.Callbacks {
-		if strSliceContains(cfg.Callbacks, callback.Name()) {
-			pCallback(sourceFile, callback)
-		}
-	}
-
 	for _, genTypeCfg := range cfg.Types {
 		typeDef, ns := repo.GetType(genTypeCfg.Name)
 		if typeDef == nil {
@@ -81,6 +75,13 @@ func main() {
 	for _, fn := range repo.Namespace.Functions {
 		if strSliceContains(cfg.Funcs, fn.CIdentifier) {
 			pFunction(sourceFile, fn)
+		}
+	}
+
+	// callbacks
+	for _, callback := range repo.Namespace.Callbacks {
+		if strSliceContains(cfg.Callbacks, callback.Name()) {
+			pCallback(sourceFile, callback)
 		}
 	}
 
