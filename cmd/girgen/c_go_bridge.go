@@ -147,6 +147,7 @@ func getBridge(typeName string, cType *gi.CType) (*CGoBridge, error) {
 				TypeForC:  "*C.GClosure",
 
 				CvtGo2C:      cvtGo2C,
+				CleanCvtGo2C: "C.g_closure_unref($c)",
 				ExprForC:     "$c",
 				ExprForGo:    "",
 				ErrExprForGo: "",

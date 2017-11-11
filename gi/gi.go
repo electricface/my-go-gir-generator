@@ -412,6 +412,7 @@ type Parameter struct {
 	Array                   *ArrayType `xml:"array"`
 	LengthForParameter      *Parameter
 	ClosureForCallbackParam *Parameter
+	ClosureParam            *Parameter
 
 	Scope        string `xml:"scope,attr"`
 	ClosureIndex int    `xml:"closure,attr"`

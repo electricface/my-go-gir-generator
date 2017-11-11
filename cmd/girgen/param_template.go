@@ -56,6 +56,17 @@ func newInParamTemplate(param *gi.Parameter) *InParamTemplate {
 	if param.LengthForParameter != nil {
 		tpl.lengthForParameter = param.LengthForParameter.Name
 	}
+
+	if param.ClosureParam != nil {
+		// param is callback
+		tpl.isClosure = true
+		scope := param.Scope
+		if scope == "" {
+			scope = "call" // default scope is call
+		}
+		tpl.closureScope = scope
+	}
+
 	return tpl
 }
 
@@ -64,6 +75,8 @@ type InParamTemplate struct {
 	varForGo           string
 	bridge             *CGoBridge
 	lengthForParameter string
+	isClosure          bool
+	closureScope       string
 }
 
 func (tpl *InParamTemplate) VarForGo() string {
@@ -98,7 +111,15 @@ func (tpl *InParamTemplate) pBeforeCall(s *SourceFile) {
 
 func (tpl *InParamTemplate) pAfterCall(s *SourceFile) {
 	if tpl.bridge.CvtGo2C != "" && tpl.bridge.CleanCvtGo2C != "" {
-		s.GoBody.Pn("%s", tpl.replace(tpl.bridge.CleanCvtGo2C))
+
+		if tpl.isClosure {
+			if tpl.closureScope == "call" {
+				s.GoBody.Pn("%s", tpl.replace(tpl.bridge.CleanCvtGo2C))
+			}
+
+		} else {
+			s.GoBody.Pn("%s", tpl.replace(tpl.bridge.CleanCvtGo2C))
+		}
 	}
 }
 
