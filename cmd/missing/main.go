@@ -50,6 +50,10 @@ func main() {
 	}
 
 	for _, struct0 := range repo.Namespace.Structs {
+		if cfg.IsIgnoredType(struct0.Name()) {
+			continue
+		}
+
 		if typeCfg, ok := typeMap[struct0.Name()]; !ok {
 			if shouldShowStruct(struct0) {
 				callTrial(dir, struct0.Name())
@@ -64,6 +68,10 @@ func main() {
 	}
 
 	for _, ifc := range repo.Namespace.Interfaces {
+		if cfg.IsIgnoredType(ifc.Name()) {
+			continue
+		}
+
 		if typeCfg, ok := typeMap[ifc.Name()]; !ok {
 			callTrial(dir, ifc.Name())
 		} else {
@@ -76,6 +84,10 @@ func main() {
 	}
 
 	for _, obj := range repo.Namespace.Objects {
+		if cfg.IsIgnoredType(obj.Name()) {
+			continue
+		}
+
 		if typeCfg, ok := typeMap[obj.Name()]; !ok {
 			callTrial(dir, obj.Name())
 		} else {

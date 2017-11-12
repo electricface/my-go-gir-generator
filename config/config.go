@@ -6,11 +6,21 @@ import (
 )
 
 type PackageConfig struct {
-	Namespace string        `toml:"namespace"`
-	Version   string        `toml:"version"`
-	Types     []*TypeConfig `toml:"types"`
-	Funcs     []string      `toml:"funcs"`
-	Callbacks []string      `toml:"callbacks"`
+	Namespace   string        `toml:"namespace"`
+	Version     string        `toml:"version"`
+	Types       []*TypeConfig `toml:"types"`
+	IgnoreTypes []string      `toml:"ignore_types"`
+	Funcs       []string      `toml:"funcs"`
+	Callbacks   []string      `toml:"callbacks"`
+}
+
+func (pkgCfg *PackageConfig) IsIgnoredType(typeName string) bool {
+	for _, typeName0 := range pkgCfg.IgnoreTypes {
+		if typeName0 == typeName {
+			return true
+		}
+	}
+	return false
 }
 
 type TypeConfig struct {
