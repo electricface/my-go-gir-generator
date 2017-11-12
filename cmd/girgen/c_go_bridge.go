@@ -325,6 +325,15 @@ var cGoBridgeMap = map[string]*CGoBridge{
 		ExprForGo:    "$G($c)",
 		ErrExprForGo: "0",
 	},
+
+	"C.GType,GType": {
+		TypeForGo: " /*Gir:GObject*/ gobject.Type",
+		TypeForC:  "C.GType",
+
+		ExprForC:     "$C($g)",
+		ExprForGo:    "$G($c)",
+		ErrExprForGo: "0",
+	},
 }
 
 func init() {
