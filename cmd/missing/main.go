@@ -27,43 +27,6 @@ func getConfigTypeMap(types []*config.TypeConfig) map[string]*config.TypeConfig 
 	return res
 }
 
-const (
-	NormalFunc = iota
-	ErrFunc
-	ManualFunc
-	IgnoreFunc
-)
-
-func getTypeFuncMap(typeCfg *config.TypeConfig) map[string]int {
-	ret := make(map[string]int, len(typeCfg.Funcs)+len(typeCfg.ErrFuncs)+
-		len(typeCfg.ManualFuncs)+len(typeCfg.IgnoreFuncs))
-	for _, fn := range typeCfg.Funcs {
-		if _, ok := ret[fn]; ok {
-			panic("duplicated func " + fn)
-		}
-		ret[fn] = NormalFunc
-	}
-	for _, fn := range typeCfg.ErrFuncs {
-		if _, ok := ret[fn]; ok {
-			panic("duplicated func " + fn)
-		}
-		ret[fn] = ErrFunc
-	}
-	for _, fn := range typeCfg.ManualFuncs {
-		if _, ok := ret[fn]; ok {
-			panic("duplicated func " + fn)
-		}
-		ret[fn] = ManualFunc
-	}
-	for _, fn := range typeCfg.IgnoreFuncs {
-		if _, ok := ret[fn]; ok {
-			panic("duplicated func " + fn)
-		}
-		ret[fn] = IgnoreFunc
-	}
-	return ret
-}
-
 func main() {
 	flag.Parse()
 
@@ -92,7 +55,7 @@ func main() {
 				callTrial(dir, struct0.Name())
 			}
 		} else {
-			funcMap := getTypeFuncMap(typeCfg)
+			funcMap := typeCfg.GetFuncMap()
 			need := listMissingFuncsStruct(struct0, funcMap)
 			if need {
 				callTrial(dir, struct0.Name())
@@ -104,7 +67,7 @@ func main() {
 		if typeCfg, ok := typeMap[ifc.Name()]; !ok {
 			callTrial(dir, ifc.Name())
 		} else {
-			funcMap := getTypeFuncMap(typeCfg)
+			funcMap := typeCfg.GetFuncMap()
 			need := listMissingFuncsInterface(ifc, funcMap)
 			if need {
 				callTrial(dir, ifc.Name())
@@ -116,7 +79,7 @@ func main() {
 		if typeCfg, ok := typeMap[obj.Name()]; !ok {
 			callTrial(dir, obj.Name())
 		} else {
-			funcMap := getTypeFuncMap(typeCfg)
+			funcMap := typeCfg.GetFuncMap()
 			need := listMissingFuncsObject(obj, funcMap)
 			if need {
 				callTrial(dir, obj.Name())
