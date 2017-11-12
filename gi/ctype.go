@@ -7,41 +7,42 @@ import (
 
 type CType struct {
 	Name       string
-	IsConst    bool
 	IsUnsigned bool
 	NumStar    int
 }
 
+// 比如:
+// char
+// char*
+// const char* const*
 func ParseCType(ctype string) (*CType, error) {
 	numStar := strings.Count(ctype, "*")
-	ctype = strings.TrimRight(ctype, "*")
-
-	var (
-		isConst    bool
-		isUnsigned bool
-	)
-
+	ctype = strings.Replace(ctype, "*", " ", -1) // remove all *
 	fields := strings.Fields(ctype)
+
+	var fieldsTemp []string
+	for _, val := range fields {
+		if val != "const" {
+			fieldsTemp = append(fieldsTemp, val)
+		} // else is const, removed
+	}
+	fields = fieldsTemp
 	if len(fields) == 0 {
 		return nil, errors.New("fields empty")
 	}
 
+	lastField := fields[len(fields)-1]
+
+	var isUnsigned bool
 	for _, f := range fields[:len(fields)-1] {
-		if f == "const" {
-			isConst = true
-		} else if f == "unsigned" {
+		if f == "unsigned" {
 			isUnsigned = true
-		} else {
-			return nil, errors.New("unknown type mod " + f)
 		}
 	}
 
-	name := fields[len(fields)-1]
-
 	return &CType{
-		Name:       name,
+		Name:       lastField,
 		NumStar:    numStar,
-		IsConst:    isConst,
 		IsUnsigned: isUnsigned,
 	}, nil
 }
@@ -70,7 +71,6 @@ func (ct *CType) Elem() *CType {
 	return &CType{
 		Name:       ct.Name,
 		NumStar:    numStar,
-		IsConst:    ct.IsConst,
 		IsUnsigned: ct.IsUnsigned,
 	}
 }
