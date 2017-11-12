@@ -103,7 +103,6 @@ func (s *SourceFile) AddCPkg(pkg string) {
 }
 
 func (s *SourceFile) AddCInclude(inc string) {
-	log.Println("SourceFile.AddCInclude:", inc)
 	for _, inc0 := range s.CIncludes {
 		if inc0 == inc {
 			return
@@ -115,7 +114,6 @@ func (s *SourceFile) AddCInclude(inc string) {
 // unsafe => "unsafe"
 // or x,github.com/path/ => x "path"
 func (s *SourceFile) AddGoImport(imp string) {
-	log.Println("SourceFile.AddGoImport:", imp)
 	var importStr string
 	if strings.Contains(imp, ",") {
 		parts := strings.SplitN(imp, ",", 2)
@@ -133,7 +131,6 @@ func (s *SourceFile) AddGoImport(imp string) {
 }
 
 func (s *SourceFile) AddGirImport(ns string) {
-	log.Println("SourceFile.AddGirImport:", ns)
 	repo := gi.GetLoadedRepo(ns)
 	if repo == nil {
 		panic("failed to get loaded repo " + ns)
