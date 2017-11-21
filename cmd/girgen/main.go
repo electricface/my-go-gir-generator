@@ -49,10 +49,6 @@ func main() {
 	pkg := strings.ToLower(repo.Namespace.Name)
 	sourceFile := getSourceFile(repo, pkg)
 
-	for _, coreInc := range repo.CoreIncludes() {
-		sourceFile.AddGirImport(coreInc.Name)
-	}
-
 	for _, genTypeCfg := range cfg.Types {
 		typeDef, ns := repo.GetType(genTypeCfg.Name)
 		if typeDef == nil {
