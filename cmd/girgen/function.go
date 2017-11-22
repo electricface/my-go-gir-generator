@@ -182,6 +182,11 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 			panic(err)
 		}
 	}()
+	if fn.ShadowedBy != "" {
+		s.GoBody.Pn("// %s shadowed by %s\n", fn.CIdentifier, fn.ShadowedBy)
+		return
+	}
+
 	markLength(fn)
 	markClosure(fn)
 	s.GoBody.Pn("// %s is a wrapper around %s().", fn.Name(), fn.CIdentifier)

@@ -350,6 +350,8 @@ type FunctionInfo struct {
 	Parameters     *Parameters `xml:"parameters"`
 	Throws         bool        `xml:"throws,attr"`
 	Introspectable bool        `xml:"introspectable,attr"`
+	Shadows        string      `xml:"shadows,attr"`
+	ShadowedBy     string      `xml:"shadowed-by,attr"`
 
 	container TypeDefine
 }
@@ -374,14 +376,6 @@ func (f *FunctionInfo) UnmarshalXML(d *xml.Decoder, start xml.StartElement) erro
 }
 
 func (f *FunctionInfo) Name() string {
-	if f.MovedTo != "" {
-		if strings.ContainsRune(f.MovedTo, '.') {
-			parts := strings.SplitN(f.MovedTo, ".", 2)
-			return parts[0] + snake2Camel(parts[1])
-		}
-		return snake2Camel(f.MovedTo)
-	}
-
 	var noInstanceParam bool
 	if f.Parameters != nil {
 		noInstanceParam = f.Parameters.InstanceParameter == nil
@@ -389,10 +383,22 @@ func (f *FunctionInfo) Name() string {
 		noInstanceParam = true
 	}
 
+	var prefix string
 	if f.container != nil && noInstanceParam {
-		return f.container.Name() + snake2Camel(f.NameAttr)
+		prefix = f.container.Name()
 	}
-	return snake2Camel(f.NameAttr)
+
+	if f.MovedTo != "" {
+		if strings.ContainsRune(f.MovedTo, '.') {
+			parts := strings.SplitN(f.MovedTo, ".", 2)
+			return parts[0] + snake2Camel(parts[1])
+		}
+		return snake2Camel(f.MovedTo)
+	}
+	if f.Shadows != "" {
+		return prefix + snake2Camel(f.Shadows)
+	}
+	return prefix + snake2Camel(f.NameAttr)
 }
 
 type Parameters struct {
