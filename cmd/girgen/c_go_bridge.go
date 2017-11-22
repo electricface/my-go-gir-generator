@@ -218,6 +218,15 @@ var cGoBridgeMap = map[string]*CGoBridge{
 		ErrExprForGo: "0.0",
 	},
 
+	"C.double,gdouble": {
+		TypeForGo: "float64",
+		TypeForC:  "C.double",
+
+		ExprForC:     "$C($g)",
+		ExprForGo:    "$G($c)",
+		ErrExprForGo: "0.0",
+	},
+
 	"C.gfloat,gfloat": {
 		TypeForGo: "float32",
 		TypeForC:  "C.gfloat",
