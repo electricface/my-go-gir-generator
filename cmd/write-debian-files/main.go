@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/pelletier/go-toml"
+	"os/exec"
 )
 
 const controlFormat = `Source: golang-github-linuxdeepin-go-gir
@@ -114,6 +115,13 @@ func getPackageName(name string) string {
 	return fmt.Sprintf("golang-github-linuxdeepin-go-gir-%s-dev", name)
 }
 
+func checkDepend(pkg string) {
+	err := exec.Command("dpkg", "-s", pkg).Run()
+	if err != nil {
+		log.Printf("WARN: %s is not installed\n", pkg)
+	}
+}
+
 func writeControl(packages []*Package) {
 	filename := filepath.Join(debianDir, "control")
 	var buf bytes.Buffer
@@ -121,6 +129,7 @@ func writeControl(packages []*Package) {
 	var deps []string
 	for _, pkg := range packages {
 		for _, dep := range pkg.Depends {
+			checkDepend(dep)
 			deps = append(deps, " "+dep)
 		}
 	}
