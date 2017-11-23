@@ -1,0 +1,20 @@
+[[packages]]
+name = "gudev-1.0"
+desc = "GUdev"
+depends = ["libgudev-1.0-dev"]
+
+[[packages]]
+name= "glib-2.0"
+desc = "GLib"
+depends = ["libglib2.0-dev"]
+dirs = ["glib-2.0", "gio-2.0", "gobject-2.0"]
+
+[[packages]]
+name = "flatpak-1.0"
+desc = "Flatpak"
+depends = ["libflatpak-dev"]
+
+[[packages]]
+name = "gdkpixbuf-2.0"
+desc = "GDK Pixbuf"
+depends = ["libgdk-pixbuf2.0-dev"]

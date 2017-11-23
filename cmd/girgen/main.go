@@ -83,6 +83,9 @@ func main() {
 
 	// alias
 	for _, alias := range repo.Namespace.Aliases {
+		if cfg.IsIgnoredType(alias.Name()) {
+			continue
+		}
 		pAlias(sourceFile, alias)
 	}
 
