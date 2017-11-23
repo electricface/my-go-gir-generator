@@ -23,3 +23,8 @@ depends = ["libgdk-pixbuf2.0-dev"]
 name = "pango-1.0"
 desc = "Pango"
 depends = ["libpango1.0-dev"]
+
+[[packages]]
+name = "cairo-1.0"
+desc = "Cairo"
+depends = ["libcairo2-dev"]

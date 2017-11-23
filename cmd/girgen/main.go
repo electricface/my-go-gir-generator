@@ -49,6 +49,10 @@ func main() {
 	pkg := strings.ToLower(repo.Namespace.Name)
 	sourceFile := getSourceFile(repo, pkg)
 
+	for _, inc := range cfg.CIncludes {
+		sourceFile.AddCInclude(inc)
+	}
+
 	for _, genTypeCfg := range cfg.Types {
 		typeDef, ns := repo.GetType(genTypeCfg.Name)
 		if typeDef == nil {

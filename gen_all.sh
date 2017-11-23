@@ -6,4 +6,5 @@
 ./gen.sh flatpak-1.0
 ./gen.sh gdkpixbuf-2.0
 ./gen.sh pango-1.0
+./gen.sh cairo-1.0
 

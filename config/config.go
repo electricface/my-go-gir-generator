@@ -12,6 +12,7 @@ type PackageConfig struct {
 	IgnoreTypes []string      `toml:"ignore_types"`
 	Funcs       []string      `toml:"funcs"`
 	Callbacks   []string      `toml:"callbacks"`
+	CIncludes   []string      `toml:"cincludes"`
 }
 
 func (pkgCfg *PackageConfig) IsIgnoredType(typeName string) bool {
