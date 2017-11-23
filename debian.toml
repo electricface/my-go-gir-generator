@@ -18,3 +18,8 @@ depends = ["libflatpak-dev"]
 name = "gdkpixbuf-2.0"
 desc = "GDK Pixbuf"
 depends = ["libgdk-pixbuf2.0-dev"]
+
+[[packages]]
+name = "pango-1.0"
+desc = "Pango"
+depends = ["libpango1.0-dev"]
