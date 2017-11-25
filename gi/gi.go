@@ -129,13 +129,11 @@ func (r *Repository) postDecode() {
 	}
 
 	for _, class := range ns.Objects {
+		if class.CTypeAttr == "" && class.GlibTypeName != "" {
+			class.CTypeAttr = class.GlibTypeName
+		}
 		class.cType, err = ParseCType(class.CTypeAttr)
 		if err != nil {
-			if class.CTypeAttr == "" {
-				// ignore this error
-				continue
-			}
-
 			panic(&ParseCTypeError{
 				err:        err,
 				typeDefine: class,

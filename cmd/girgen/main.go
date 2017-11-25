@@ -122,6 +122,13 @@ func getSourceFile(repo *gi.Repository, pkg string) *SourceFile {
 }
 
 func pAlias(s *SourceFile, alias *gi.AliasInfo) {
+	name := alias.Name()
+	defer func() {
+		if err := recover(); err != nil {
+			log.Println("pAlias", name)
+			panic(err)
+		}
+	}()
 	sourceType := alias.SourceType
 	sourceTypeCType, err := gi.ParseCType(sourceType.CType)
 	if err != nil {
@@ -133,12 +140,12 @@ func pAlias(s *SourceFile, alias *gi.AliasInfo) {
 	}
 
 	// TODO:
-	if strings.HasSuffix(alias.Name(), "Marshaller") {
+	if strings.HasSuffix(name, "Marshaller") {
 		// ignore SignalCMarshaller and SignalCVaMarshaller
 		return
 	}
 
-	s.GoBody.Pn("type %s %s", alias.Name(), br.TypeForGo)
+	s.GoBody.Pn("type %s %s", name, br.TypeForGo)
 }
 
 func pEnum(s *SourceFile, enum *gi.EnumInfo) {

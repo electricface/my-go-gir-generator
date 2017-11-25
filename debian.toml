@@ -30,8 +30,13 @@ desc = "Cairo"
 depends = ["libcairo2-dev"]
 
 [[packages]]
+name = "atk-1.0"
+desc = "ATK"
+depends = ["libatk1.0-dev"]
+
+[[packages]]
 name = "gtk-3.0"
 desc = "GTK"
-dirs = ["gdk-3.0"]
+dirs = ["gdk-3.0", "gtk-3.0"]
 depends = ["libgtk-3-dev"]
 
