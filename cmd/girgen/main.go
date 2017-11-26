@@ -28,7 +28,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	cfg, err := config.Load(filepath.Join(dir, "gir-gen.toml"))
+	configFileName := os.Args[2]
+	configFile := filepath.Join(dir, configFileName)
+
+	cfg, err := config.Load(configFile)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -82,3 +82,14 @@ func Load(filename string) (*PackageConfig, error) {
 	}
 	return &config, nil
 }
+
+func (cfg *PackageConfig) Save(filename string) {
+	content, err := toml.Marshal(*cfg)
+	if err != nil {
+		panic(err)
+	}
+	err = ioutil.WriteFile(filename, content, 0644)
+	if err != nil {
+		panic(err)
+	}
+}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -10,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/cosiner/gohper/terminal/std"
-	"github.com/pelletier/go-toml"
 
 	"github.com/electricface/my-go-gir-generator/config"
 	"github.com/electricface/my-go-gir-generator/gi"
@@ -45,7 +43,6 @@ func main() {
 	}
 
 	cfgFile := filepath.Join(dir, "gir-gen.toml")
-	cfgFileBackup := cfgFile + ".bak"
 	cfg, err := config.Load(cfgFile)
 	if err != nil {
 		log.Fatal(err)
@@ -87,7 +84,7 @@ loop:
 		if nextFunc == "" {
 			log.Print("no next func")
 			if isNewType {
-				saveCfg(cfgFile, cfg)
+				cfg.Save(cfgFile)
 			}
 			break
 		}
@@ -96,82 +93,49 @@ loop:
 		if funcInfo.Deprecated {
 			log.Printf("add deprecated %s to ignore_funcs", nextFunc)
 			typeCfg.IgnoreFuncs = append(typeCfg.IgnoreFuncs, nextFunc)
-			saveCfg(cfgFile, cfg)
+			cfg.Save(cfgFile)
 			continue
 		}
 
-		typeCfg.Funcs = append(typeCfg.Funcs, nextFunc)
-
-		// backup
-		if err := os.Rename(cfgFile, cfgFileBackup); err != nil {
-			panic(err)
-		}
-		saveCfg(cfgFile, cfg)
-
-		err = test(dir, cfg)
+		err = callTestOneFunc(dir, targetType, nextFunc)
 		if err != nil {
 			var interactor std.Interactor
 			input := interactor.ReadInput("\nadd "+nextFunc+
 				" to err_funcs(e) or manual_funcs(m) or ignore_funcs(i) or quit\n", "e")
 
 			switch input {
-			case "m":
-				log.Printf("add %s to manual_funcs", nextFunc)
-				typeCfg.Funcs = typeCfg.Funcs[:len(typeCfg.Funcs)-1]
-				typeCfg.ManualFuncs = append(typeCfg.ManualFuncs, nextFunc)
-				saveCfg(cfgFile, cfg)
-
 			case "e":
 				log.Printf("add %s to err_funcs", nextFunc)
-				typeCfg.Funcs = typeCfg.Funcs[:len(typeCfg.Funcs)-1]
 				typeCfg.ErrFuncs = append(typeCfg.ErrFuncs, nextFunc)
-				saveCfg(cfgFile, cfg)
+				cfg.Save(cfgFile)
+
+			case "m":
+				log.Printf("add %s to manual_funcs", nextFunc)
+				typeCfg.ManualFuncs = append(typeCfg.ManualFuncs, nextFunc)
+				cfg.Save(cfgFile)
 
 			case "i":
 				log.Printf("add %s to ignore_funcs", nextFunc)
-				typeCfg.Funcs = typeCfg.Funcs[:len(typeCfg.Funcs)-1]
 				typeCfg.IgnoreFuncs = append(typeCfg.IgnoreFuncs, nextFunc)
-				saveCfg(cfgFile, cfg)
+				cfg.Save(cfgFile)
 
 			default:
-				log.Println("recover config")
-				if err := os.Rename(cfgFileBackup, cfgFile); err != nil {
-					panic(err)
-				}
+				// quit
 				break loop
-
 			}
+		} else {
+			// err is nil
+			typeCfg.Funcs = append(typeCfg.Funcs, nextFunc)
+			cfg.Save(cfgFile)
 		}
 	}
 }
 
-func test(dir string, cfg *config.PackageConfig) error {
-	output, err := exec.Command("./girgen", dir).CombinedOutput()
-	os.Stdout.Write(output)
-	if err != nil {
-		log.Println("girgen failed:", err)
-		return err
-	}
-
-	goPkg := filepath.Join(getGirProjectRoot(), strings.ToLower(cfg.Namespace)+"-"+cfg.Version)
-	log.Println("go build", goPkg)
-	output, err = exec.Command("go", "build", "-i", "-v", goPkg).CombinedOutput()
-	os.Stdout.Write(output)
-	if err != nil {
-		log.Println("go build failed:", err)
-		return err
-	}
-
-	return nil
-}
-
-func saveCfg(filename string, cfg *config.PackageConfig) {
-	content, err := toml.Marshal(*cfg)
-	if err != nil {
-		panic(err)
-	}
-
-	ioutil.WriteFile(filename, content, 0644)
+func callTestOneFunc(dir, typeName, funcName string) error {
+	cmd := exec.Command("./test-one-func", dir, typeName, funcName)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	return cmd.Run()
 }
 
 func getNextFunc(typeDef gi.TypeDefine, funcMap map[string]int) string {
