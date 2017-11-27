@@ -77,8 +77,14 @@ func test(dir string, cfg *config.PackageConfig) (error, int) {
 }
 
 func clearCfg(cfg *config.PackageConfig, typeName, funcName string) {
-	cfg.Funcs = nil
 	var foundType bool
+	if typeName == "ROOT" {
+		foundType = true
+		cfg.Funcs = []string{funcName}
+	} else {
+		cfg.Funcs = nil
+	}
+
 	for _, typ := range cfg.Types {
 		typ.Funcs = nil
 		typ.IgnoreFuncs = nil
