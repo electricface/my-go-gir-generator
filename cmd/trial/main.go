@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/cosiner/gohper/terminal/std"
 
@@ -90,15 +91,26 @@ loop:
 		}
 
 		funcInfo := getFuncInfo(typeDef, nextFunc)
-		if funcInfo.Deprecated {
-			log.Printf("add deprecated %s to ignore_funcs", nextFunc)
+		if shouldIgnoreFunc(funcInfo) {
+			log.Printf("auto add %s to ignore_funcs", nextFunc)
 			typeCfg.IgnoreFuncs = append(typeCfg.IgnoreFuncs, nextFunc)
 			cfg.Save(cfgFile)
 			continue
 		}
 
-		err = callTestOneFunc(dir, targetType, nextFunc)
-		if err != nil {
+		exitCode := callTestOneFunc(dir, targetType, nextFunc)
+		switch exitCode {
+		case 0:
+			// no err
+			typeCfg.Funcs = append(typeCfg.Funcs, nextFunc)
+
+		case 1:
+			typeCfg.ErrFuncs = append(typeCfg.ErrFuncs, nextFunc)
+			log.Printf("auto add %s to err_funcs", nextFunc)
+
+		default:
+			// 2
+			notifyUser("require manual intervention")
 			var interactor std.Interactor
 			input := interactor.ReadInput("\nadd "+nextFunc+
 				" to err_funcs(e) or manual_funcs(m) or ignore_funcs(i) or quit\n", "e")
@@ -107,35 +119,63 @@ loop:
 			case "e":
 				log.Printf("add %s to err_funcs", nextFunc)
 				typeCfg.ErrFuncs = append(typeCfg.ErrFuncs, nextFunc)
-				cfg.Save(cfgFile)
 
 			case "m":
 				log.Printf("add %s to manual_funcs", nextFunc)
 				typeCfg.ManualFuncs = append(typeCfg.ManualFuncs, nextFunc)
-				cfg.Save(cfgFile)
 
 			case "i":
 				log.Printf("add %s to ignore_funcs", nextFunc)
 				typeCfg.IgnoreFuncs = append(typeCfg.IgnoreFuncs, nextFunc)
-				cfg.Save(cfgFile)
 
 			default:
 				// quit
 				break loop
 			}
-		} else {
-			// err is nil
-			typeCfg.Funcs = append(typeCfg.Funcs, nextFunc)
-			cfg.Save(cfgFile)
 		}
+		cfg.Save(cfgFile)
 	}
 }
 
-func callTestOneFunc(dir, typeName, funcName string) error {
+func shouldIgnoreFunc(fn *gi.FunctionInfo) bool {
+	if fn.Deprecated {
+		return true
+	}
+
+	if fn.Parameters != nil {
+		for _, param := range fn.Parameters.Parameters {
+			if param.Name == "..." {
+				return true
+			}
+
+			if param.Type != nil && param.Type.Name == "va_list" {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func notifyUser(msg string) {
+	exec.Command("notify-send", "trial", msg).Run()
+}
+
+func callTestOneFunc(dir, typeName, funcName string) int {
 	cmd := exec.Command("./test-one-func", dir, typeName, funcName)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
-	return cmd.Run()
+	err := cmd.Run()
+	if err == nil {
+		return 0
+	}
+
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok {
+		log.Fatal("err is not ExitError")
+	}
+	waitStatus := exitErr.ProcessState.Sys().(syscall.WaitStatus)
+	return waitStatus.ExitStatus()
 }
 
 func getNextFunc(typeDef gi.TypeDefine, funcMap map[string]int) string {

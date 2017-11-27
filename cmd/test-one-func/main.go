@@ -32,9 +32,10 @@ func main() {
 	testCfgFile := filepath.Join(dir, testCfgFileName)
 	cfg.Save(testCfgFile)
 
-	err = test(dir, cfg)
+	err, exitCode := test(dir, cfg)
 	if err != nil {
-		os.Exit(1)
+		log.Println(err)
+		os.Exit(exitCode)
 	}
 }
 
@@ -42,7 +43,13 @@ func getGirProjectRoot() string {
 	return "github.com/linuxdeepin/go-gir"
 }
 
-func test(dir string, cfg *config.PackageConfig) error {
+const (
+	NoErr      = 0
+	GirGenErr  = 1
+	GoBuildErr = 2
+)
+
+func test(dir string, cfg *config.PackageConfig) (error, int) {
 	// step 1: girgen
 	girGenCmd := exec.Command("./girgen", dir, testCfgFileName)
 	girGenCmd.Stdout = os.Stdout
@@ -50,7 +57,7 @@ func test(dir string, cfg *config.PackageConfig) error {
 
 	err := girGenCmd.Run()
 	if err != nil {
-		return fmt.Errorf("girgen error: %v", err)
+		return fmt.Errorf("girgen error: %v", err), GirGenErr
 	}
 
 	// step 2: go build
@@ -62,11 +69,11 @@ func test(dir string, cfg *config.PackageConfig) error {
 
 	err = goBuildCmd.Run()
 	if err != nil {
-		return fmt.Errorf("go build error: %v", err)
+		return fmt.Errorf("go build error: %v", err), GoBuildErr
 	}
 
 	// success
-	return nil
+	return nil, NoErr
 }
 
 func clearCfg(cfg *config.PackageConfig, typeName, funcName string) {
