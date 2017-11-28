@@ -9,11 +9,16 @@ import (
 )
 
 var goKeywords = []string{
+	// keywords:
 	"break", "default", "func", "interface", "select",
 	"case", "defer", "go", "map", "struct",
 	"chan", "else", "goto", "package", "switch",
 	"const", "fallthrough", "if", "range", "type",
 	"continue", "for", "import", "return", "var",
+
+	// funcs:
+	"append", "cap", "close", "complex", "copy", "delete", "imag",
+	"len", "make", "new", "panic", "print", "println", "real", "recover",
 }
 
 var goKeywordMap map[string]struct{}
