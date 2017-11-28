@@ -88,6 +88,27 @@ func getBridge(typeName string, cType *gi.CType) (*CGoBridge, error) {
 				isGPointer = true
 			}
 
+			if cType.NumStar == 0 && !isGPointer {
+				typeForGo := typeDef.Name()
+				errExprForGo := typeForGo + "{}"
+				var exprForGo string
+
+				if sameNs {
+					exprForGo = "wrap" + typeForGo + "(&$c)"
+				} else {
+					exprForGo = fmt.Sprintf("%s.Wrap%s(unsafe.Pointer(&$c)) /*gir:%s*/", nsLower, typeForGo, ns)
+				}
+
+				return &CGoBridge{
+					TypeForGo: typeForGo,
+					TypeForC:  cType.CgoNotation(),
+
+					ExprForC:     "$c", // unused
+					ExprForGo:    exprForGo,
+					ErrExprForGo: errExprForGo,
+				}, nil
+			}
+
 			if cType.NumStar != 1 && !isGPointer {
 				panic("assert failed cType.NumStr == 1, ctype is " + cTypeCgoNotation)
 			}

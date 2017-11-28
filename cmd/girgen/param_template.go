@@ -255,7 +255,6 @@ func (tpl *OutParamTemplate) VarForGo() string {
 }
 
 func (tpl *OutParamTemplate) TypeForGo() string {
-	// maybe hide
 	return tpl.bridge.TypeForGo
 }
 
