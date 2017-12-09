@@ -37,8 +37,12 @@ func getParamName(in string) string {
 	return in
 }
 
-func getVarTypeForGo(tpl ParamTemplate) string {
-	return tpl.VarForGo() + " " + tpl.TypeForGo()
+func getVarTypeForGo(tpl ParamTemplate, ifcReceiver bool) string {
+	typeForGo := tpl.TypeForGo()
+	if ifcReceiver {
+		typeForGo = "*" + typeForGo + "Iface"
+	}
+	return tpl.VarForGo() + " " + typeForGo
 }
 
 func IsFuncReturnVoid(retVal *gi.Parameter) bool {
@@ -223,11 +227,15 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 	if fn.Parameters != nil {
 		instanceParam := fn.Parameters.InstanceParameter
 		if instanceParam != nil {
+
+			instanceType, _ := repo.GetType(instanceParam.Type.Name)
+			_, isIfc := instanceType.(*gi.InterfaceInfo)
+
 			instanceParamTpl = newParamTemplate(instanceParam)
 			if instanceParamTpl == nil {
 				panic("newParamTemplate failed for instance param " + instanceParam.Name)
 			}
-			receiver = "(" + getVarTypeForGo(instanceParamTpl) + ")"
+			receiver = "(" + getVarTypeForGo(instanceParamTpl, isIfc) + ")"
 		}
 
 		for _, param := range fn.Parameters.Parameters {
@@ -246,7 +254,7 @@ func pFunction(s *SourceFile, fn *gi.FunctionInfo) {
 			if param.Direction == "" {
 				// direction in
 				if param.LengthForParameter == nil {
-					args = append(args, getVarTypeForGo(tpl))
+					args = append(args, getVarTypeForGo(tpl, false))
 				}
 			} else if param.Direction == "out" {
 

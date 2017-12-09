@@ -31,7 +31,7 @@ func pCallback(s *SourceFile, callback *gi.CallbackInfo) {
 		paramTpls = append(paramTpls, tpl)
 
 		if idx != param.ClosureIndex {
-			args = append(args, getVarTypeForGo(tpl))
+			args = append(args, getVarTypeForGo(tpl, false))
 		} // else: param is user_data
 	}
 

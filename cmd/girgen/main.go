@@ -254,17 +254,36 @@ func pObject(s *SourceFile, object *gi.ObjectInfo, funcs []string) {
 	s.GoBody.Pn("// Object %s", name)
 
 	s.GoBody.Pn("type %s struct {", name)
+
+	// for interfaces
+	for _, ifc0 := range object.ImplementedInterfaces() {
+		ifc, ifcNS := repo.GetType(ifc0)
+		if ifc == nil {
+			panic("fail to get type " + ifc0)
+		}
+		ifcInfo := ifc.(*gi.InterfaceInfo)
+
+		if isSameNamespace(ifcNS) {
+			s.GoBody.Pn("%sIface", ifcInfo.Name())
+		} else {
+			s.AddGirImport(ifcNS)
+			ifcNSLower := strings.ToLower(ifcNS)
+			s.GoBody.Pn("%s.%sIface", ifcNSLower, ifcInfo.Name())
+		}
+	}
+
+	// for inheritance
 	if object.Parent != "" {
 		parent, parentNS := repo.GetType(object.Parent)
 		if parent == nil {
 			panic("fail to get type " + object.Parent)
 		}
 
-		parentNSLower := strings.ToLower(parentNS)
 		if isSameNamespace(parentNS) {
 			s.GoBody.Pn("%s", parent.Name())
 		} else {
 			s.AddGirImport(parentNS)
+			parentNSLower := strings.ToLower(parentNS)
 			s.GoBody.Pn("%s.%s", parentNSLower, parent.Name())
 		}
 	} else {
@@ -284,14 +303,14 @@ func pObject(s *SourceFile, object *gi.ObjectInfo, funcs []string) {
 		}
 		ifcInfo := ifc.(*gi.InterfaceInfo)
 
-		ifcNSLower := strings.ToLower(ifcNS)
 		// method name is ifcInfo.Name()
 		if isSameNamespace(ifcNS) {
 			s.GoBody.Pn("func (v %s) %s() %s {", name, ifcInfo.Name(), ifcInfo.Name())
 			s.GoBody.Pn("    return Wrap%s(v.Ptr)", ifcInfo.Name())
 		} else {
+			ifcNSLower := strings.ToLower(ifcNS)
 			s.GoBody.Pn("func (v %s) %s() %s.%s {", name, ifcInfo.Name(), ifcNSLower, ifcInfo.Name())
-			s.GoBody.Pn("    return %s.Wrap%s(v.Ptr) /*gir:%s*/", ifcNSLower, ifcInfo.Name(), ifcNS)
+			s.GoBody.Pn("    return %s.Wrap%s(v.Ptr)", ifcNSLower, ifcInfo.Name())
 		}
 		s.GoBody.Pn("}")
 	}
@@ -323,9 +342,17 @@ func pContainerMethods(s *SourceFile, typeDef gi.TypeDefine) {
 	cPtrType := "*" + typeDef.CType().CgoNotation()
 
 	// method native
-	s.GoBody.Pn("func (v %s) native() %s {", name, cPtrType)
-	s.GoBody.Pn("    return (%s)(v.Ptr)", cPtrType)
-	s.GoBody.Pn("}")
+	_, isIfc := typeDef.(*gi.InterfaceInfo)
+	if isIfc {
+		s.GoBody.Pn("func (v *%sIface) native() %s {", name, cPtrType)
+		s.GoBody.Pn("    return (%s)(*(*unsafe.Pointer)(unsafe.Pointer(v)))",
+			cPtrType)
+		s.GoBody.Pn("}")
+	} else {
+		s.GoBody.Pn("func (v %s) native() %s {", name, cPtrType)
+		s.GoBody.Pn("    return (%s)(v.Ptr)", cPtrType)
+		s.GoBody.Pn("}")
+	}
 
 	obj, isObj := typeDef.(*gi.ObjectInfo)
 	if isObj && obj.Parent != "" {
@@ -343,12 +370,12 @@ func pContainerMethods(s *SourceFile, typeDef gi.TypeDefine) {
 	} else {
 		// method wrapXXX
 		s.GoBody.Pn("func wrap%s(p %s) %s {", name, cPtrType, name)
-		s.GoBody.Pn("return %s{unsafe.Pointer(p)}", name)
+		s.GoBody.Pn("return %s{Ptr: unsafe.Pointer(p)}", name)
 		s.GoBody.Pn("}")
 
 		// method WrapXXX
 		s.GoBody.Pn("func Wrap%s(p unsafe.Pointer) %s {", name, name)
-		s.GoBody.Pn("return %s{p}", name)
+		s.GoBody.Pn("return %s{Ptr: p}", name)
 		s.GoBody.Pn("}")
 	}
 
@@ -375,8 +402,12 @@ func pInterface(s *SourceFile, ifc *gi.InterfaceInfo, funcs []string) {
 	s.GoBody.Pn("// Interface %s", name)
 
 	s.GoBody.Pn("type %s struct {", name)
+	s.GoBody.Pn("    %sIface", name)
 	s.GoBody.Pn("    Ptr unsafe.Pointer")
 	s.GoBody.Pn("}")
+
+	s.GoBody.Pn("type %sIface struct{}", name)
+
 	pContainerMethods(s, ifc)
 	pMethodGetType(s, name, ifc.GlibGetType)
 	pMethodGetGValueGetter(s, name)
