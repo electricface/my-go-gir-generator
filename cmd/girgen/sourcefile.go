@@ -175,6 +175,10 @@ func (v *SourceBody) writeStr(str string) {
 		}
 	}
 
+	if len(subMatchResults) > 0 {
+		str = requireReg.ReplaceAllString(str, "")
+	}
+
 	v.buf.WriteString(str)
 }
 

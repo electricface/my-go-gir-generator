@@ -126,11 +126,10 @@ func getBridge(typeName string, cType *gi.CType) (*CGoBridge, error) {
 					exprForGo = "wrap" + typeForGo + "($c)"
 				}
 			} else {
-				typeForGo = nsLower + "." + typeDef.Name()
+				typeForGo = nsLower + "." + typeDef.Name() + fmt.Sprintf("/*gir:%s*/", ns)
 				// 不能使用 native 方法了
 				// 比如 (*C.GFile)(file.Ptr)
 				exprForC = "($C)($g.Ptr)"
-				//typeForGo = ns + "." + typeDef.Name()
 				exprForGo = nsLower + ".Wrap" + typeDef.Name() + "(unsafe.Pointer($c))" +
 					fmt.Sprintf("/*gir:%s*/", ns)
 			}
