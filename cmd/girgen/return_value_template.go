@@ -98,10 +98,11 @@ type ArrayReturnValueTemplate struct {
 }
 
 type GListReturnValueTemplate struct {
-	varForGo string
-	varForC  string
-	bridge   *CGoBridge
-	sameNs   bool
+	varForGo    string
+	varForC     string
+	typeDefName string
+	bridge      *CGoBridge
+	sameNs      bool
 
 	elemType string
 	elemNs   string
@@ -109,9 +110,9 @@ type GListReturnValueTemplate struct {
 
 func (tpl *GListReturnValueTemplate) TypeForGo() string {
 	if tpl.sameNs {
-		return "List"
+		return tpl.typeDefName
 	}
-	return "glib.List"
+	return "glib." + tpl.typeDefName
 }
 
 func (*GListReturnValueTemplate) pAfterCall(s *SourceFile) {
@@ -120,9 +121,9 @@ func (*GListReturnValueTemplate) pAfterCall(s *SourceFile) {
 func (tpl *GListReturnValueTemplate) ExprForGo() string {
 	var exprForGo string
 	if tpl.sameNs {
-		exprForGo = "WrapList(unsafe.Pointer(%s), \n%s)"
+		exprForGo = "Wrap%s(unsafe.Pointer(%s), \n%s)"
 	} else {
-		exprForGo = "glib.WrapList(unsafe.Pointer(%s), \n%s) /*gir:GLib*/"
+		exprForGo = "glib.Wrap%s(unsafe.Pointer(%s), \n%s) /*gir:GLib*/"
 	}
 
 	var expr string
@@ -134,7 +135,7 @@ func (tpl *GListReturnValueTemplate) ExprForGo() string {
 	}
 
 	dataWrapFunc := fmt.Sprintf("func (p unsafe.Pointer) interface{} { return %s }", expr)
-	return fmt.Sprintf(exprForGo, tpl.varForC, dataWrapFunc)
+	return fmt.Sprintf(exprForGo, tpl.typeDefName, tpl.varForC, dataWrapFunc)
 }
 
 func (tpl *GListReturnValueTemplate) ErrExprForGo() string {
@@ -151,9 +152,12 @@ func newGListReturnValueTemplate(param *gi.Parameter) *GListReturnValueTemplate 
 		panic("failed to get type " + param.Type.Name)
 	}
 	tpl.sameNs = isSameNamespace(ns)
+	tpl.typeDefName = typeDef.Name()
 
-	if typeDef.Name() != "List" || ns != "GLib" {
-		panic("type is not glib.List")
+	if !(ns == "GLib" &&
+		(typeDef.Name() == "List" ||
+			typeDef.Name() == "SList")) {
+		panic("type is not glib.List or glib.SList")
 	}
 
 	tpl.elemType = param.Type.ElemType.Name

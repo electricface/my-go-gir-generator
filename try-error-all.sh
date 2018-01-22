@@ -10,5 +10,5 @@ $cmd pango-1.0
 $cmd cairo-1.0
 $cmd atk-1.0
 $cmd gdk-3.0
-$cmd gtk-3.0
+#$cmd gtk-3.0
 
