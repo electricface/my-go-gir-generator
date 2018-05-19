@@ -19,3 +19,6 @@ cmd-test-one-func:
 
 cmd-try-error:
 	go build -i -v $(Cmd)/try-error
+
+cmd-gir-viewer:
+	go build -i -v $(Cmd)/gir-viewer
